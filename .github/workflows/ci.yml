@@ -1,6 +1,7 @@
 name: CI
 
-# Every pull request: unit tests, and the bundle validated against uat (the first environment CI deploys to).
+# Every pull request: unit tests, and the bundle validated against the shared dev copy (target dev-shared). Not prod:
+# the prod environment waits for a reviewer, which would hold every pull request.
 on:
   pull_request:
 
@@ -20,7 +21,7 @@ jobs:
 
   validate:
     runs-on: ubuntu-latest
-    environment: uat
+    environment: dev
     env:
       DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
       DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
@@ -28,4 +29,4 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: databricks/setup-cli@main
-      - run: databricks bundle validate -t uat
+      - run: databricks bundle validate -t dev-shared

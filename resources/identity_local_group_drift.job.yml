@@ -1,7 +1,7 @@
 resources:
   jobs:
     # Daily drift check: fails when any workspace-local group exists in this workspace. Paused for now (see
-    # pause_status); when unpaused, it runs daily in uat and prod and stays paused in dev.
+    # pause_status); when unpaused, it runs daily in prod and stays paused in dev.
     identity_local_group_drift:
       name: identity-local-group-drift-check
       max_concurrent_runs: 1

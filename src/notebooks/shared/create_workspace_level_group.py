@@ -22,11 +22,10 @@
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.service import iam
 
-ENVIRONMENTS = ("dev", "uat", "prod")
+ENVIRONMENTS = ("dev", "prod")
 # Workspace ID -> environment, from the dbx-platform-infra-azure workspace stacks.
 WORKSPACE_ENVIRONMENTS = {
     "7405609089943919": "dev",
-    "7405605496889455": "uat",
     "7405604784566671": "prod",
 }
 
@@ -38,7 +37,7 @@ if env == "auto":
     workspace_id = str(w.get_workspace_id())
     env = WORKSPACE_ENVIRONMENTS.get(workspace_id)
     if env is None:
-        raise ValueError(f"Workspace {workspace_id} is not dev, uat or prod; choose env in the widget.")
+        raise ValueError(f"Workspace {workspace_id} is not dev or prod; choose env in the widget.")
 if env not in ENVIRONMENTS:
     raise ValueError(f"env must be one of {', '.join(ENVIRONMENTS)}, not {env!r}.")
 

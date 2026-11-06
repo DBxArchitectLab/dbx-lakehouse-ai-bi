@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Stores what the workspace group migration needs to sign in to the account as sp-dbx-lakehouse, in the
-# sct_dbx_architect_lab scope of dev, uat and prod, and gives sp-dbx-lakehouse READ on the scope:
+# sct_dbx_architect_lab scope of dev and prod, and gives sp-dbx-lakehouse READ on the scope:
 #
 #   sp-dbx-lakehouse-client-id       its application ID
 #   sp-dbx-lakehouse-client-secret   its Databricks OAuth secret (the same as in the GitHub environments)
@@ -8,8 +8,8 @@
 #
 #   bash scripts/put-migration-secrets.sh
 #
-# Run as a workspace admin of dev, uat and prod. It uses the CLI profiles dev, uat and prod, signing in (browser) only
-# where the profile has no valid login yet. Values are asked for once, hidden, and used for all three workspaces. A
+# Run as a workspace admin of dev and prod. It uses the CLI profiles dev and prod, signing in (browser) only where
+# the profile has no valid login yet. Values are asked for once, hidden, and used for both workspaces. A
 # workspace that fails is reported and the others still run; run it again to retry.
 set -uo pipefail
 
@@ -17,7 +17,6 @@ client_id="9a769c8e-a44b-4009-9378-719753df14c7"   # sp-dbx-lakehouse
 scope="sct_dbx_architect_lab"
 workspaces=(
   "dev  https://adb-7405609089943919.19.azuredatabricks.net"
-  "uat  https://adb-7405605496889455.15.azuredatabricks.net"
   "prod https://adb-7405604784566671.11.azuredatabricks.net"
 )
 
@@ -69,4 +68,4 @@ if [ "${#failed[@]}" -gt 0 ]; then
   echo "Not stored in: ${failed[*]}. Fix the error shown for it and run the script again." >&2
   exit 1
 fi
-echo "Done: the three secrets are in dev, uat and prod."
+echo "Done: the three secrets are in dev and prod."

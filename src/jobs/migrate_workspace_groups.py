@@ -1,10 +1,10 @@
 """Job entry point: migrate (or report) the workspace-local groups of the workspace this job runs in.
 
-The bundle deploys the job to dev, uat and prod, so each environment migrates its own groups: the workspace calls
+The bundle deploys the job to dev and prod, so each environment migrates its own groups: the workspace calls
 stay inside the workspace (serverless compute can't call other workspaces' APIs without cross-workspace network
 rules), and only the account API is called from outside.
 
-  --env dev|uat|prod             the environment of this workspace: used in the account group names ({env})
+  --env dev|prod                 the environment of this workspace: used in the account group names ({env})
   --catalog, --schema            where the inventory tables are (the environment's catalog, schema identity)
   --mode plan                    read only: list every workspace-local group and what apply would do (default)
   --mode apply                   carry out the migration (see identity.group_migration)
@@ -37,7 +37,7 @@ sys.path.insert(0, str(Path(inspect.currentframe().f_code.co_filename).resolve()
 from identity import group_migration as gm  # noqa: E402
 from identity.inventory import Inventory, status  # noqa: E402
 
-ENVIRONMENTS = ("dev", "uat", "prod")
+ENVIRONMENTS = ("dev", "prod")
 
 
 def secret(scope: str, key: str, env: str) -> str:

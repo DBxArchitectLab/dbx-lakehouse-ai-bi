@@ -1,10 +1,10 @@
 """Migrate workspace-local groups to account-level groups.
 
 Workspace-local groups exist in one workspace only: Unity Catalog can't grant to them, and they can't be shared or
-governed from the account. For each workspace-local group in dev, uat and prod, this module:
+governed from the account. For each workspace-local group in dev and prod, this module:
 
   1. creates an account group of its own, named by the naming template (which must contain {env}, so the same
-     local group name in dev, uat and prod becomes three different account groups);
+     local group name in dev and prod becomes two different account groups);
   2. gives it the same members, resolved to account identities (users by userName, service principals by
      applicationId, nested workspace-local groups by their own account group, migrated first);
   3. if the account group has the same name as the local group, renames the local group to <temp_prefix><name>
