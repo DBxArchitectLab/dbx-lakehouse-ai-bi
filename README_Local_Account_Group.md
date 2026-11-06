@@ -1,6 +1,6 @@
 # Identity: workspace-local groups to account groups
 
-Part of [dbx-lakehouse-ai-bi](README.md): how the bundle migrates the workspace-local groups of dev, uat and
+Part of [dbx-lakehouse-ai-bi](README.md): how the bundle migrates the workspace-local groups of dev and
 prod to account groups. The repository's structure, environments, setup and deployment are in the
 [README](README.md); this guide assumes that setup is done.
 
@@ -8,7 +8,7 @@ Workspace-local groups live in one workspace only. Unity Catalog can't grant to 
 audit them, and the same name can mean different people in dev and prod. Account groups fix all three: one
 definition, assigned to the workspaces that need it, usable in Unity Catalog grants.
 
-The `identity-workspace-group-migration` job is deployed to dev, uat and prod like every other job here, and each
+The `identity-workspace-group-migration` job is deployed to dev and prod like every other job here, and each
 copy migrates **the workspace it runs in**. That keeps every workspace call inside its own workspace: serverless
 compute can't call another workspace's API unless the account's network policy allows cross-workspace access. For
 each workspace-local group, it:
@@ -42,15 +42,14 @@ reported, and that group is skipped in apply mode.
 
 ## One account group per workspace, never shared
 
-Account groups are account-wide. If dev's, uat's and prod's `data_engineers` became one account group, everyone in
+Account groups are account-wide. If dev's and prod's `data_engineers` became one account group, everyone in
 dev's group would gain prod's permissions. So the naming template **must** contain `{env}`: the same local group name
-in three workspaces always becomes three account groups (`data_engineers_dev`, `data_engineers_uat`,
-`data_engineers_prod`). The job refuses to start with a template that lacks `{group}` or `{env}`.
+in two workspaces always becomes two account groups (`data_engineers_dev`, `data_engineers_prod`). The job refuses to start with a template that lacks `{group}` or `{env}`.
 
 ## Inventory tables
 
 Every run (plan and apply) appends to four Delta tables in the environment's own catalog, schema `identity`
-(`dbxarchitectlab_dev.identity`, `dbxarchitectlab_uat.identity`, `dbxarchitectlab_prod.identity`; created on the
+(`dbxarchitectlab_dev.identity`, `dbxarchitectlab_prod.identity`; created on the
 first run):
 
 | Table | One row per | Use it for |
@@ -71,13 +70,13 @@ operations, and moving permissions and changing groups are workspace-admin opera
 1. **Account admin:** account console → **User management → Service principals → `sp-dbx-lakehouse` → Roles** →
    **Account admin**. Anyone who can change this repository's jobs (and deploy a branch to dev) can then act with
    account-admin rights through it: keep the repository's write access and the `prod` reviewers to the platform team.
-2. **Workspace admin in dev, uat and prod:** in `dbx-platform-infra-azure`, add its application ID to
-   `live/<env>/workspace-bootstrap/workspace-admin-config.yaml` for dev, uat and prod, then plan and apply each
+2. **Workspace admin in dev and prod:** in `dbx-platform-infra-azure`, add its application ID to
+   `live/<env>/workspace-bootstrap/workspace-admin-config.yaml` for dev and prod, then plan and apply each
    `<env>-dbxarchitectlab-workspace-bootstrap`.
-3. **Its account credentials, in each of dev, uat and prod:** the account API can't use the job's own identity, so
+3. **Its account credentials, in each of dev and prod:** the account API can't use the job's own identity, so
    the job signs in to the account with `sp-dbx-lakehouse`'s client ID and OAuth secret and the account ID, all three
    read from the workspace's `sct_dbx_architect_lab` scope (`sp-dbx-lakehouse-client-id`,
-   `sp-dbx-lakehouse-client-secret`, `databricks-account-id`). As a workspace admin of dev, uat and prod, in Git Bash:
+   `sp-dbx-lakehouse-client-secret`, `databricks-account-id`). As a workspace admin of dev and prod, in Git Bash:
 
    ```bash
    bash scripts/put-migration-secrets.sh
@@ -102,11 +101,11 @@ In each workspace, run `identity-workspace-group-migration` (**Run now with diff
 
 | Run | Where | `mode` | `delete_local_groups` |
 | --- | --- | --- | --- |
-| 1. Review what would change | dev, uat, prod | `plan` | `false` |
+| 1. Review what would change | dev, prod | `plan` | `false` |
 | 2. Migrate dev | dev | `apply` | `false` |
 | 3. Check dev: users still reach their jobs, clusters, notebooks and warehouses | | | |
-| 4. Migrate uat, then prod | uat, then prod | `apply` | `false` |
-| 5. Remove the local groups, once checked | dev, then uat, prod | `apply` | `true` |
+| 4. Migrate prod | prod | `apply` | `false` |
+| 5. Remove the local groups, once checked | dev, then prod | `apply` | `true` |
 
 Plan mode changes nothing in the workspace or the account. The output lists every local group, its account group,
 its nested local groups and each action (`WOULD ...`), plus any problem to fix first; the same goes into the
@@ -117,6 +116,9 @@ local groups and migrates it first.
 ## Test evidence
 
 ### Nested group migration in uat (apply), 2026-10-27
+
+Recorded before uat was removed (the platform runs dev and prod only since November 2026). The job is the same
+in every environment, so the result still holds for dev and prod.
 
 `identity-workspace-group-migration` in uat, `mode` = `apply`, `delete_local_groups` = `false`, run as
 `sp-dbx-lakehouse` (job run 942748576891353): **Succeeded**, 2 workspace-local groups migrated, 0 blocked. The test
@@ -148,7 +150,7 @@ What it shows:
 
 ## Keeping it that way
 
-`identity-local-group-drift-check`, once unpaused, runs daily in uat and prod (paused in dev) in plan mode and fails, with an email,
+`identity-local-group-drift-check`, once unpaused, runs daily in prod (paused in dev) in plan mode and fails, with an email,
 when any workspace-local group exists. Longer term, make Microsoft Entra ID the source of account groups (SCIM
 provisioning or automatic identity management), so groups are managed once, in Entra ID, and only assigned to
 workspaces.

@@ -1,12 +1,12 @@
 name: Deploy
 # The run's title in the Actions list: which branch went to which environment, and who started it.
-run-name: "${{ github.event_name == 'workflow_dispatch' && format('Deploy {0} → {1} (@{2})', github.ref_name, inputs.environment, github.actor) || format('Promote {0} → uat → prod (@{1})', github.ref_name, github.actor) }}"
+run-name: "${{ github.event_name == 'workflow_dispatch' && format('Deploy {0} → {1} (@{2})', github.ref_name, inputs.environment, github.actor) || format('Promote {0} → prod (@{1})', github.ref_name, github.actor) }}"
 
 # Two ways to deploy, both as sp-dbx-lakehouse (unit tests run in CI, on the pull request):
-# - Merge to main (promotion): uat -> approval -> prod.
+# - Merge to main (promotion): approval -> prod.
 # - Run workflow (on demand): Actions -> Deploy -> Run workflow, pick the branch ("Use workflow from") and the
-#   environment; only that environment's job runs. dev and uat accept any branch; prod only main, and still waits for
-#   the prod environment's reviewers.
+#   environment; only that environment's job runs. dev accepts any branch; prod only main, and still waits for the
+#   prod environment's reviewers.
 on:
   push:
     branches: [main]
@@ -15,7 +15,7 @@ on:
       environment:
         description: Environment to deploy the selected branch to
         type: choice
-        options: [dev, uat, prod]
+        options: [dev, prod]
         default: dev
 
 permissions:
@@ -45,33 +45,9 @@ jobs:
       - name: Copy src/notebooks/shared to /Workspace/Shared
         run: bash scripts/deploy-shared-notebooks.sh dev-shared
 
-  # On merge to main, or on demand.
-  uat:
-    if: github.event_name == 'push' || inputs.environment == 'uat'
-    runs-on: ubuntu-latest
-    environment: uat
-    concurrency:
-      group: deploy-uat
-      cancel-in-progress: false
-    env:
-      DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
-      DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: databricks/setup-cli@main
-      - run: databricks bundle validate -t uat
-      - run: databricks bundle deploy -t uat
-      - name: Copy src/notebooks/shared to /Workspace/Shared
-        run: bash scripts/deploy-shared-notebooks.sh uat
-
-  # After a successful uat on merge to main, or on demand from main.
+  # On merge to main, or on demand from main. Try a branch in the shared dev copy first (Run workflow -> dev).
   prod:
-    needs: uat
-    if: >-
-      !cancelled() && (
-        (github.event_name == 'push' && needs.uat.result == 'success') ||
-        inputs.environment == 'prod'
-      )
+    if: github.event_name == 'push' || inputs.environment == 'prod'
     runs-on: ubuntu-latest
     environment: prod  # add required reviewers to this environment: the approval gate before prod
     concurrency:

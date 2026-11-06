@@ -17,10 +17,10 @@ variables:
     description: Schema for this bundle's tables
     default: lakehouse
   env:
-    description: Environment of the target workspace (dev, uat or prod); used in migrated account group names
+    description: Environment of the target workspace (dev or prod); used in migrated account group names
 
-# Developers deploy their own copy to dev by hand (target dev). Everything shared, the dev-shared copy, uat and prod,
-# is deployed by GitHub Actions as sp-dbx-lakehouse, never by hand.
+# Developers deploy their own copy to dev by hand (target dev). Everything shared, the dev-shared copy and prod, is
+# deployed by GitHub Actions as sp-dbx-lakehouse, never by hand.
 targets:
   # Each developer deploys their own copy, as themselves: resources are prefixed "[dev <user>]", schedules are paused.
   dev:
@@ -45,23 +45,6 @@ targets:
       env: dev
     presets:
       trigger_pause_status: PAUSED
-    run_as:
-      service_principal_name: "9a769c8e-a44b-4009-9378-719753df14c7"   # sp-dbx-lakehouse
-    permissions:
-      - service_principal_name: "9a769c8e-a44b-4009-9378-719753df14c7"   # sp-dbx-lakehouse, the deploying identity
-        level: CAN_MANAGE
-      - group_name: DBX_Architect_Lab_Admin
-        level: CAN_MANAGE
-
-  uat:
-    mode: production
-    workspace:
-      host: "https://adb-7405605496889455.15.azuredatabricks.net"
-      # The service principal's own folder: only it (and workspace admins) can write there.
-      root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/${bundle.target}
-    variables:
-      catalog: dbxarchitectlab_uat
-      env: uat
     run_as:
       service_principal_name: "9a769c8e-a44b-4009-9378-719753df14c7"   # sp-dbx-lakehouse
     permissions:

@@ -1,12 +1,12 @@
 # Workspace-local group migration: how account groups are named and where the account credentials are. Read by
-# src/jobs/migrate_workspace_groups.py, which runs in each of dev, uat and prod and migrates that workspace's groups.
+# src/jobs/migrate_workspace_groups.py, which runs in each of dev and prod and migrates that workspace's groups.
 # The environment and the inventory catalog come from the bundle target (variables env and catalog).
 
 account_host: "https://accounts.azuredatabricks.net"
 
 naming:
-  # Account group name for a local group. Must contain {group} and {env}: the same local group name in dev, uat and
-  # prod always becomes three different account groups (data_engineers_dev, _uat, _prod), never one shared group.
+  # Account group name for a local group. Must contain {group} and {env}: the same local group name in dev and prod
+  # always becomes two different account groups (data_engineers_dev, _prod), never one shared group.
   # The job refuses to start otherwise.
   template: "{group}_{env}"
   # When the account group has the local group's own name, the local group is renamed to this prefix + name first
@@ -22,7 +22,7 @@ adopt_account_groups: []
 
 # The account API calls (creating account groups and assigning them to the workspace) sign in as sp-dbx-lakehouse
 # with its OAuth credentials; workspace calls use the job's own identity and need no secret. The client ID, the client
-# secret and the account ID are secrets, in each of dev, uat and prod, in the scope the workspace bootstrap creates
+# secret and the account ID are secrets, in each of dev and prod, in the scope the workspace bootstrap creates
 # (dbx-platform-infra-azure, live/<env>/workspace-bootstrap/secret-scope-config.yaml). Stored by
 # scripts/put-migration-secrets.sh.
 credentials:
