@@ -17,8 +17,10 @@ QuoteAI shares this repo, its bundle and its catalogs with other work. The rule,
   `**/quote_ai/**`.
 - **Databricks objects:** names start with `quote_ai_`. That covers schemas, volumes, jobs, pipelines, serving and
   gateway endpoints, vector search endpoints, UC connections, dashboards and bundle resource keys. Apps and
-  Lakebase instances allow no underscores, so they use `quote-ai-`. Tables, functions and models sit inside a
-  `quote_ai_` schema.
+  Lakebase instances allow no underscores, so they use `quote-ai-`.
+- **Inside a schema (decided):** tables, views, functions and models keep plain names. The schema carries the prefix,
+  so their full names already start with `quote_ai_` (`quote_ai_gudid_bronze.device_raw`,
+  `quote_ai_ops.ingestion_log`); a second prefix (`quote_ai_ops.quote_ai_ingestion_log`) adds nothing.
   In a developer's personal `dev` copy, development mode puts the bundle's standard `dev_<user>_` in front of every
   resource (`dev_<user>_quote_ai_product`); `dev-shared` and `prod` use the exact `quote_ai_` names. Schemas carry
   the property `app: quote_ai`, and jobs the tag `app: quote_ai`, for cost and usage reports.

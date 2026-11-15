@@ -60,6 +60,8 @@ def test_throttled_twice_then_ok():
     rows = list(c.history("record_key", "rk-1"))
     assert len(session.calls) == 3
     assert t.slept == [3.0, 4.0]             # Retry-After honoured; then backoff 2 * 2**1
+    print(f"\n429 -> waited {t.slept[0]}s (Retry-After); 503 -> waited {t.slept[1]}s (back-off); "
+          f"then 200: {len(rows)} versions after {len(session.calls)} calls")
     assert [r[HISTORY_FIELDS.index("public_version_number")] for r in rows] == ["1", "2"]   # oldest first
     assert c.http.retried == 2
 
