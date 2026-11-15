@@ -3,6 +3,7 @@ bundle:
 
 include:
   - resources/*.yml
+  - resources/quote_ai/*.yml   # QuoteAI (the AI series): everything it deploys, in one folder
 
 # src/notebooks/shared goes to /Workspace/Shared instead (scripts/deploy-shared-notebooks.sh, run by the pipeline),
 # so it isn't also copied into the bundle's folder.

@@ -8,5 +8,5 @@ sources:
     base_url: "https://accessgudid.nlm.nih.gov/api/v3/"
     endpoint: devices/history.json
     tables:
-      - target: gudid_bronze.api_device_history
+      - target: quote_ai_gudid_bronze.api_device_history
         keys: [public_device_record_key, public_version_number]

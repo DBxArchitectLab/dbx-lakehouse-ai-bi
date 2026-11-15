@@ -1,11 +1,13 @@
 """The ingestion log and audit trail: what each run did, what landed, and which config was in force.
 
-  ops.ingestion_log      one row per run of a source: inserted as running, finished as succeeded, failed, partial or
+  quote_ai_ops.ingestion_log      one row per run of a source: inserted as running, finished as succeeded, failed,
+                                  partial or
                          no_new_files. A crash still records "failed" with the error.
-  ops.ingestion_file     one row per file landed (append-only): path, URL, size, MD5 and SHA-256. The same file landed
+  quote_ai_ops.ingestion_file     one row per file landed (append-only): path, URL, size, MD5 and SHA-256. The same
+                                  file landed
                          twice is recorded once; a re-published file with different content is refused.
-  ops.ingestion_config   the config in force, one row per source and table, with history (SCD type 2).
-  ops.v_ingestion_audit  a run, its files and its config entry, from one load ID.
+  quote_ai_ops.ingestion_config   the config in force, one row per source and table, with history (SCD type 2).
+  quote_ai_ops.v_ingestion_audit  a run, its files and its config entry, from one load ID.
 
 Who started a job, and what changed in each table, stay in Databricks' own audit (system.access.audit, the job run
 history, Delta table history, Unity Catalog lineage): we link to it through job_id and job_run_id, not copy it.
@@ -147,7 +149,7 @@ def logged_run(log: LogWriter, rec: RunRecord, clock=utcnow) -> Iterator[RunReco
 
 
 def config_rows(cfg: IngestConfig, config_hash: str, git_commit: str | None) -> list[dict]:
-    """ops.ingestion_config rows for this config: one per source and table, with the full source entry as JSON."""
+    """quote_ai_ops.ingestion_config rows: one per source and table, with the full source entry as JSON."""
     out = []
     for s in cfg.sources:
         entry = json.dumps(s.model_dump(mode="json", exclude_none=True), sort_keys=True)
@@ -180,7 +182,7 @@ CREATE TABLE IF NOT EXISTS {ops}.ingestion_config (
   source STRING NOT NULL, target_table STRING NOT NULL, type STRING, schedule STRING, enabled BOOLEAN,
   keys ARRAY<STRING>, entry_json STRING, config_hash STRING NOT NULL, git_commit STRING,
   valid_from TIMESTAMP, valid_to TIMESTAMP, is_current BOOLEAN)
-COMMENT 'The ingestion config in force (config/ingest/sources.yml), one row per source and table, with history.'""",
+COMMENT 'The ingestion config in force (config/quote_ai/ingest/sources.yml), per source and table, with history.'""",
     "v_ingestion_audit": """
 CREATE OR REPLACE VIEW {ops}.v_ingestion_audit
 COMMENT 'From one load ID: the run, who ran it from which code and config, and the files it landed.' AS

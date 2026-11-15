@@ -12,7 +12,9 @@ from quote_ai.ingest.log import InMemoryLog, RunContext, config_rows, logged_run
 
 ROOT = Path(__file__).resolve().parents[2]
 CFG = load_config()
-NAMES = engine.Names(catalog="dbxarchitectlab_dev", schemas={"gudid_bronze": "dev_me_gudid_bronze", "ops": "ops"})
+NAMES = engine.Names(catalog="dbxarchitectlab_dev", 
+                     schemas={"quote_ai_gudid_bronze": "dev_me_quote_ai_gudid_bronze",
+                              "quote_ai_ops": "dev_me_quote_ai_ops"})
 CTX = RunContext(job_id="11", job_run_id="901", run_as="sp-dbx-lakehouse", bundle_target="dev-shared",
                  git_commit="abc123", config_hash="h1")
 TODAY = date(2026, 11, 14)
@@ -46,16 +48,17 @@ class FakeIO:
 
 
 def test_names_map_logical_to_physical():
-    assert NAMES.table("gudid_bronze.device_raw") == "dbxarchitectlab_dev.dev_me_gudid_bronze.device_raw"
-    assert NAMES.volume_path("gudid_bronze.releases").as_posix() == \
-        "/Volumes/dbxarchitectlab_dev/dev_me_gudid_bronze/releases"
+    assert NAMES.table("quote_ai_gudid_bronze.device_raw") == \
+        "dbxarchitectlab_dev.dev_me_quote_ai_gudid_bronze.device_raw"
+    assert NAMES.volume_path("quote_ai_gudid_bronze.releases").as_posix() == \
+        "/Volumes/dbxarchitectlab_dev/dev_me_quote_ai_gudid_bronze/releases"
 
 
 # ------------------------------------------------------------------ the run log
 
 def test_a_failed_run_is_still_logged_as_failed():
     log = InMemoryLog()
-    rec = new_run("r1", "s", "file", ["gudid_bronze.t"], CTX)
+    rec = new_run("r1", "s", "file", ["quote_ai_gudid_bronze.t"], CTX)
     with pytest.raises(ZeroDivisionError):
         with logged_run(log, rec):
             1 / 0
@@ -74,7 +77,7 @@ def test_land_logs_running_then_record_finishes_with_counts(monkeypatch):
 
     assert engine.record(CFG, "daily", NAMES, log, FakeIO(), CTX, "SUCCESS") == []
     rec = log.get("901:gudid_daily_updates")
-    assert rec.status == "succeeded" and rec.rows_by_table == {"gudid_bronze.daily_device_raw": 42}
+    assert rec.status == "succeeded" and rec.rows_by_table == {"quote_ai_gudid_bronze.daily_device_raw": 42}
 
 
 def test_a_failed_pipeline_fails_the_file_runs(monkeypatch):
@@ -145,11 +148,11 @@ def test_changed_ids_sql_refuses_anything_but_a_date():
 # ------------------------------------------------------------------ checks, config history, the bundle
 
 def test_every_bronze_table_has_the_three_checks():
-    checks = bronze_checks(CFG, NAMES.table, "dbxarchitectlab_dev.ops")
+    checks = bronze_checks(CFG, NAMES.table, "dbxarchitectlab_dev.quote_ai_ops")
     tables = {t.target for s in CFG.sources for t in s.tables}
     assert {(c.table, c.name) for c in checks} == {(t, n) for t in tables
                                                     for n in ("one_row_per_key", "load_id_present", "load_id_logged")}
-    dup = next(c for c in checks if c.table == "gudid_bronze.device_raw" and c.name == "one_row_per_key")
+    dup = next(c for c in checks if c.table == "quote_ai_gudid_bronze.device_raw" and c.name == "one_row_per_key")
     assert "GROUP BY `primary_di` HAVING count(*) > 1" in dup.sql
 
 
@@ -160,8 +163,8 @@ def test_config_rows_one_per_source_and_table():
 
 
 def test_generated_bundle_resources_match_the_config():
-    stale = bundle_gen.stale_files(CFG, ROOT / "resources")
-    assert not stale, f"run python scripts/gen_ingest_resources.py: {stale}"
+    stale = bundle_gen.stale_files(CFG, ROOT / "resources" / "quote_ai")
+    assert not stale, f"run python scripts/quote_ai/gen_ingest_resources.py: {stale}"
 
 
 def test_the_daily_job_lands_then_loads_then_calls_the_api_then_checks():

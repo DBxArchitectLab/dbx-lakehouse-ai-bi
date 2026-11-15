@@ -9,15 +9,15 @@ from pydantic import ValidationError
 from quote_ai.ingest.config import IngestConfig, Source, config_hash, load_config
 
 ROOT = Path(__file__).resolve().parents[2]
-BAD = sorted((ROOT / "evaluation" / "v1" / "ingestion" / "bad_configs").glob("*.yml"))
+BAD = sorted((ROOT / "evaluation" / "quote_ai" / "v1" / "ingestion" / "bad_configs").glob("*.yml"))
 
 
 def test_repo_config_is_valid():
-    cfg = load_config(ROOT / "config" / "ingest" / "sources.yml")
+    cfg = load_config(ROOT / "config" / "quote_ai" / "ingest" / "sources.yml")
     assert {s.name for s in cfg.sources} == {"gudid_full_release", "gudid_daily_updates",
                                              "gudid_api_device_history", "dbxlab_synthetic"}
     assert cfg.source("gudid_api_device_history").api.max_requests_per_run == 2000
-    assert cfg.schemas() == ["gudid_bronze", "sales_bronze"]
+    assert cfg.schemas() == ["quote_ai_gudid_bronze", "quote_ai_sales_bronze"]
 
 
 def test_every_table_has_keys_and_every_file_table_a_pattern():
@@ -40,7 +40,7 @@ def test_the_suite_has_bad_configs():
 
 
 def test_api_limits_default_when_omitted():
-    raw = yaml.safe_load((ROOT / "config" / "ingest" / "sources.yml").read_text(encoding="utf-8"))
+    raw = yaml.safe_load((ROOT / "config" / "quote_ai" / "ingest" / "sources.yml").read_text(encoding="utf-8"))
     api = next(s for s in raw["sources"] if s["type"] == "api")
     del api["api"]
     cfg = IngestConfig.model_validate(raw)
@@ -48,7 +48,7 @@ def test_api_limits_default_when_omitted():
 
 
 def test_hash_ignores_formatting_but_not_content():
-    text = (ROOT / "config" / "ingest" / "sources.yml").read_text(encoding="utf-8")
+    text = (ROOT / "config" / "quote_ai" / "ingest" / "sources.yml").read_text(encoding="utf-8")
     a = IngestConfig.model_validate(yaml.safe_load(text))
     b = IngestConfig.model_validate(yaml.safe_load(yaml.safe_dump(yaml.safe_load(text), sort_keys=True)))
     assert config_hash(a) == config_hash(b)
@@ -64,6 +64,7 @@ def test_download_url_template():
 
 def test_a_generator_must_be_known():
     with pytest.raises(ValidationError, match="unknown generator"):
-        Source(name="x", type="file", description="x", owner="o", schedule="daily", volume="sales_bronze.landing",
+        Source(name="x", type="file", description="x", owner="o", schedule="daily",
+               volume="quote_ai_sales_bronze.landing",
                landing="x", format="csv", generator="run_anything",
-               tables=[{"target": "sales_bronze.x_raw", "pattern": "*.csv", "keys": ["id"]}])
+               tables=[{"target": "quote_ai_sales_bronze.x_raw", "pattern": "*.csv", "keys": ["id"]}])

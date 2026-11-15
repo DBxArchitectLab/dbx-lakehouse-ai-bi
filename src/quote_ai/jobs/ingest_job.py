@@ -1,7 +1,8 @@
 """Job entry point for QuoteAI ingestion: one command per task of the generated jobs
-(resources/quote_ai_ingest_<schedule>.job.yml).
+(resources/quote_ai/quote_ai_ingest_<schedule>.job.yml).
 
-  setup                         the ops tables and audit view; record the config in force (ops.ingestion_config)
+  setup                         the ops tables and audit view; record the config in force
+                                (quote_ai_ops.ingestion_config)
   land --schedule S             land the new release files of the file sources on that schedule
        [--release-date D]       for a full release (job quote_ai_ingest_once, parameter release_date, yyyy-mm-dd)
   record --schedule S --pipeline-state STATE
@@ -20,10 +21,10 @@ from pathlib import Path
 
 # src/ on the path, so quote_ai imports. Not from __file__: a spark_python_task on serverless runs this file through
 # exec(), which doesn't define it; the code object still carries the file's path.
-sys.path.insert(0, str(Path(inspect.currentframe().f_code.co_filename).resolve().parents[1]))
+sys.path.insert(0, str(Path(inspect.currentframe().f_code.co_filename).resolve().parents[2]))
 from quote_ai.ingest import engine  # noqa: E402
 from quote_ai.ingest.checks import bronze_checks  # noqa: E402
-from quote_ai.ingest.config import config_hash, load_config  # noqa: E402
+from quote_ai.ingest.config import OPS_SCHEMA, config_hash, load_config  # noqa: E402
 from quote_ai.ingest.log import RunContext  # noqa: E402
 from quote_ai.ingest.synthetic import GENERATORS  # noqa: E402
 
@@ -60,7 +61,7 @@ def main(argv=None) -> int:
     cfg = load_config(a.config)
     names = engine.Names(catalog=a.catalog,
                          schemas=dict(p.split("=", 1) for p in a.schemas.split(",") if p))
-    ops = f"{names.catalog}.{names.schema('ops')}"
+    ops = f"{names.catalog}.{names.schema(OPS_SCHEMA)}"
     io = SparkIO(spark)
     log = DeltaLog(io, ops)
     h = config_hash(cfg)

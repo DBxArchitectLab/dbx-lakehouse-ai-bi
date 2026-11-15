@@ -1,4 +1,4 @@
-# GENERATED from config/ingest/sources.yml by scripts/gen_ingest_resources.py: do not edit by hand.
+# GENERATED from config/quote_ai/ingest/sources.yml by scripts/quote_ai/gen_ingest_resources.py.
 # A test fails the pull request when this file and the config disagree.
 resources:
   jobs:
@@ -16,15 +16,15 @@ resources:
       - task_key: setup
         environment_key: default
         spark_python_task:
-          python_file: ../src/jobs/quote_ai_ingest.py
+          python_file: ../../src/quote_ai/jobs/ingest_job.py
           parameters:
           - setup
           - --config
-          - ${workspace.file_path}/config/ingest/sources.yml
+          - ${workspace.file_path}/config/quote_ai/ingest/sources.yml
           - --catalog
           - ${var.catalog}
           - --schemas
-          - gudid_bronze=${resources.schemas.gudid_bronze.name},sales_bronze=${resources.schemas.sales_bronze.name},ops=${resources.schemas.ops.name}
+          - quote_ai_gudid_bronze=${resources.schemas.quote_ai_gudid_bronze.name},quote_ai_sales_bronze=${resources.schemas.quote_ai_sales_bronze.name},quote_ai_ops=${resources.schemas.quote_ai_ops.name}
           - --job-id
           - '{{job.id}}'
           - --job-run-id
@@ -38,17 +38,17 @@ resources:
         - task_key: setup
         environment_key: default
         spark_python_task:
-          python_file: ../src/jobs/quote_ai_ingest.py
+          python_file: ../../src/quote_ai/jobs/ingest_job.py
           parameters:
           - land
           - --schedule
           - daily
           - --config
-          - ${workspace.file_path}/config/ingest/sources.yml
+          - ${workspace.file_path}/config/quote_ai/ingest/sources.yml
           - --catalog
           - ${var.catalog}
           - --schemas
-          - gudid_bronze=${resources.schemas.gudid_bronze.name},sales_bronze=${resources.schemas.sales_bronze.name},ops=${resources.schemas.ops.name}
+          - quote_ai_gudid_bronze=${resources.schemas.quote_ai_gudid_bronze.name},quote_ai_sales_bronze=${resources.schemas.quote_ai_sales_bronze.name},quote_ai_ops=${resources.schemas.quote_ai_ops.name}
           - --job-id
           - '{{job.id}}'
           - --job-run-id
@@ -68,7 +68,7 @@ resources:
         run_if: ALL_DONE
         environment_key: default
         spark_python_task:
-          python_file: ../src/jobs/quote_ai_ingest.py
+          python_file: ../../src/quote_ai/jobs/ingest_job.py
           parameters:
           - record
           - --schedule
@@ -76,11 +76,11 @@ resources:
           - --pipeline-state
           - '{{tasks.files.result_state}}'
           - --config
-          - ${workspace.file_path}/config/ingest/sources.yml
+          - ${workspace.file_path}/config/quote_ai/ingest/sources.yml
           - --catalog
           - ${var.catalog}
           - --schemas
-          - gudid_bronze=${resources.schemas.gudid_bronze.name},sales_bronze=${resources.schemas.sales_bronze.name},ops=${resources.schemas.ops.name}
+          - quote_ai_gudid_bronze=${resources.schemas.quote_ai_gudid_bronze.name},quote_ai_sales_bronze=${resources.schemas.quote_ai_sales_bronze.name},quote_ai_ops=${resources.schemas.quote_ai_ops.name}
           - --job-id
           - '{{job.id}}'
           - --job-run-id
@@ -94,17 +94,17 @@ resources:
         - task_key: record
         environment_key: default
         spark_python_task:
-          python_file: ../src/jobs/quote_ai_ingest.py
+          python_file: ../../src/quote_ai/jobs/ingest_job.py
           parameters:
           - api
           - --source
           - gudid_api_device_history
           - --config
-          - ${workspace.file_path}/config/ingest/sources.yml
+          - ${workspace.file_path}/config/quote_ai/ingest/sources.yml
           - --catalog
           - ${var.catalog}
           - --schemas
-          - gudid_bronze=${resources.schemas.gudid_bronze.name},sales_bronze=${resources.schemas.sales_bronze.name},ops=${resources.schemas.ops.name}
+          - quote_ai_gudid_bronze=${resources.schemas.quote_ai_gudid_bronze.name},quote_ai_sales_bronze=${resources.schemas.quote_ai_sales_bronze.name},quote_ai_ops=${resources.schemas.quote_ai_ops.name}
           - --job-id
           - '{{job.id}}'
           - --job-run-id
@@ -118,15 +118,15 @@ resources:
         - task_key: api_gudid_api_device_history
         environment_key: default
         spark_python_task:
-          python_file: ../src/jobs/quote_ai_ingest.py
+          python_file: ../../src/quote_ai/jobs/ingest_job.py
           parameters:
           - checks
           - --config
-          - ${workspace.file_path}/config/ingest/sources.yml
+          - ${workspace.file_path}/config/quote_ai/ingest/sources.yml
           - --catalog
           - ${var.catalog}
           - --schemas
-          - gudid_bronze=${resources.schemas.gudid_bronze.name},sales_bronze=${resources.schemas.sales_bronze.name},ops=${resources.schemas.ops.name}
+          - quote_ai_gudid_bronze=${resources.schemas.quote_ai_gudid_bronze.name},quote_ai_sales_bronze=${resources.schemas.quote_ai_sales_bronze.name},quote_ai_ops=${resources.schemas.quote_ai_ops.name}
           - --job-id
           - '{{job.id}}'
           - --job-run-id

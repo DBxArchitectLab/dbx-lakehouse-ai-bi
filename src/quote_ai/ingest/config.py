@@ -1,4 +1,4 @@
-"""The ingestion config: config/ingest/sources.yml, checked by this schema in CI.
+"""The ingestion config: config/quote_ai/ingest/sources.yml, checked by this schema in CI.
 
 The config says WHAT to load: source, format, location, target, keys, schedule. The engine knows HOW. A source can land
 several files (one GUDID release holds a file per entity), so a source has a list of tables, each with its own keys.
@@ -18,10 +18,12 @@ from typing import Literal
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-DEFAULT_PATH = Path(__file__).resolve().parents[3] / "config" / "ingest" / "sources.yml"
+DEFAULT_PATH = Path(__file__).resolve().parents[3] / "config" / "quote_ai" / "ingest" / "sources.yml"
 
+# Every QuoteAI schema is prefixed quote_ai_, so its objects are easy to find and control in a shared catalog.
+OPS_SCHEMA = "quote_ai_ops"
 # Ingestion writes bronze only. Silver and gold are built from bronze (AI-03), never loaded directly.
-BRONZE_SCHEMAS = {"gudid_bronze", "sales_bronze"}
+BRONZE_SCHEMAS = {"quote_ai_gudid_bronze", "quote_ai_sales_bronze"}
 # Landing code that the config may name. Anything else needs code reviewed into this list, not a config flag.
 GENERATORS = {"dbxlab_synthetic"}
 
@@ -143,7 +145,7 @@ class Source(Strict):
     schedule: Literal["once", "daily", "weekly", "on_demand"]
     tables: list[Table] = Field(min_length=1)
     # file sources
-    volume: str | None = None          # schema.volume, e.g. gudid_bronze.releases
+    volume: str | None = None          # schema.volume, e.g. quote_ai_gudid_bronze.releases
     landing: str | None = None         # folder in the volume; files land in <landing>/<yyyymmdd>/
     download: Download | None = None   # fetched by the downloader ...
     generator: str | None = None       # ... or written by named landing code; neither = dropped by hand

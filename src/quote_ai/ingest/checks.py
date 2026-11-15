@@ -2,10 +2,10 @@
 
   one_row_per_key     after any replay, exactly one row per key
   load_id_present     every row carries its _load_id
-  load_id_logged      every _load_id belongs to a succeeded (or partial) run in ops.ingestion_log
+  load_id_logged      every _load_id belongs to a succeeded (or partial) run in quote_ai_ops.ingestion_log
 
 The config's own checks (an entry without keys, a file source without a pattern, ...) run in CI: tests/quote_ai and
-evaluation/v1/ingestion.
+evaluation/quote_ai/v1/ingestion.
 """
 from __future__ import annotations
 

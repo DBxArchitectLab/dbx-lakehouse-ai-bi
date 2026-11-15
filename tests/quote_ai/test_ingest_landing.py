@@ -125,13 +125,13 @@ def test_engine_columns_are_kept_and_collisions_refused():
 
 
 def test_release_date_and_load_id_come_from_the_landing_folder():
-    p = "/Volumes/c/gudid_bronze/releases/daily/20261112/gudid_daily_update_20261112.xml"
+    p = "/Volumes/c/quote_ai_gudid_bronze/releases/daily/20261112/gudid_daily_update_20261112.xml"
     assert release_date_from_path(p) == D
     assert load_id_for("gudid_daily_updates", "20261112") == "gudid_daily_updates:20261112"
 
 
 def test_merge_updates_by_key_and_never_lets_an_older_version_win():
-    sql = merge_sql("c.gudid_bronze.api_device_history", "c.gudid_bronze.stage",
+    sql = merge_sql("c.quote_ai_gudid_bronze.api_device_history", "c.quote_ai_gudid_bronze.stage",
                     ["public_device_record_key", "public_version_number"])
     assert "ON t.`public_device_record_key` <=> s.`public_device_record_key` AND" in sql
     assert "QUALIFY ROW_NUMBER() OVER (PARTITION BY `public_device_record_key`, `public_version_number`" in sql

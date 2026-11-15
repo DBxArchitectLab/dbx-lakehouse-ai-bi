@@ -13,7 +13,7 @@ from typing import Any, Iterator
 from quote_ai.ingest.http import Http
 from quote_ai.ingest.lineage import snake_case
 
-# The columns of gudid_bronze.api_device_history before lineage; payload keeps the version exactly as returned.
+# The columns of quote_ai_gudid_bronze.api_device_history before lineage; payload keeps the version exactly as returned.
 HISTORY_SCHEMA = ("primary_di string, public_device_record_key string, public_version_number string, "
                   "public_version_status string, public_version_date string, creation_date string, "
                   "request string, payload string")

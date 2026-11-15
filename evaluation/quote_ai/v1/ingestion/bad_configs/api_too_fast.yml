@@ -6,11 +6,11 @@ sources:
     description: synthetic
     owner: sales-ops
     schedule: daily
-    volume: sales_bronze.landing
+    volume: quote_ai_sales_bronze.landing
     landing: dbxlab
     format: csv
     tables:
-      - { target: sales_bronze.price_book_raw, pattern: "p*.csv", keys: [price_book_id] }
+      - { target: quote_ai_sales_bronze.price_book_raw, pattern: "p*.csv", keys: [price_book_id] }
   - name: api_history
     type: api
     description: history
@@ -18,7 +18,7 @@ sources:
     schedule: daily
     base_url: "https://accessgudid.nlm.nih.gov/api/v3/"
     endpoint: devices/history.json
-    ids_from: { table: sales_bronze.price_book_raw, column: price_book_id }
+    ids_from: { table: quote_ai_sales_bronze.price_book_raw, column: price_book_id }
     api: { max_rps: 50 }
     tables:
-      - { target: gudid_bronze.api_device_history, keys: [public_device_record_key] }
+      - { target: quote_ai_gudid_bronze.api_device_history, keys: [public_device_record_key] }

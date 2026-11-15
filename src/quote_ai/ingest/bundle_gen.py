@@ -1,10 +1,12 @@
-"""The bundle resources for ingestion, generated from config/ingest/sources.yml.
+"""The bundle resources for ingestion, generated from config/quote_ai/ingest/sources.yml.
 
-  resources/quote_ai_ingest.schemas.yml         the bronze and ops schemas, and the landing volumes
-  resources/quote_ai_ingest_bronze.pipeline.yml  the bronze pipeline: every file table of every enabled file source
-  resources/quote_ai_ingest_<schedule>.job.yml   one job per schedule: setup, land, files, record, api, checks
+  resources/quote_ai/quote_ai_ingest.schemas.yml         the bronze and ops schemas, and the landing volumes
+  resources/quote_ai/quote_ai_ingest_bronze.pipeline.yml  the bronze pipeline: every file table
+  resources/quote_ai/quote_ai_ingest_<schedule>.job.yml   one job per schedule: setup, land, files, record, api,
+                                                          checks
 
-Run scripts/gen_ingest_resources.py after changing the config; a test fails the pull request when the files in the
+Run scripts/quote_ai/gen_ingest_resources.py after changing the config; a test fails the pull request when the files in
+the
 repo don't match the config. The YAML stays in the repo, so the review shows exactly what will be deployed.
 """
 from __future__ import annotations
@@ -13,27 +15,29 @@ from pathlib import Path
 
 import yaml
 
-from quote_ai.ingest.config import IngestConfig
+from quote_ai.ingest.config import OPS_SCHEMA, IngestConfig
 
-HEADER = ("# GENERATED from config/ingest/sources.yml by scripts/gen_ingest_resources.py: do not edit by hand.\n"
+HEADER = ("# GENERATED from config/quote_ai/ingest/sources.yml by scripts/quote_ai/gen_ingest_resources.py.\n"
           "# A test fails the pull request when this file and the config disagree.\n")
 PIPELINE_KEY = "quote_ai_ingest_bronze"
-SCRIPT = "../src/jobs/quote_ai_ingest.py"
-CONFIG = "${workspace.file_path}/config/ingest/sources.yml"
+SCRIPT = "../../src/quote_ai/jobs/ingest_job.py"
+CONFIG = "${workspace.file_path}/config/quote_ai/ingest/sources.yml"
 DEPENDENCIES = ["pydantic>=2.7", "pyyaml>=6", "requests>=2.31"]
 CRON = {"daily": "0 0 6 * * ?", "weekly": "0 0 6 ? * MON"}
 SCHEDULE_ORDER = ["once", "daily", "weekly", "on_demand"]
 
 
 def _schemas_arg(cfg: IngestConfig) -> str:
-    return ",".join(f"{s}=${{resources.schemas.{s}.name}}" for s in [*cfg.schemas(), "ops"])
+    return ",".join(f"{s}=${{resources.schemas.{s}.name}}" for s in [*cfg.schemas(), OPS_SCHEMA])
 
 
 def schemas_yaml(cfg: IngestConfig) -> dict:
     schemas = {s: {"catalog_name": "${var.catalog}", "name": s,
-                   "comment": f"QuoteAI ingestion: {s} (written only by the ingestion jobs)"} for s in cfg.schemas()}
-    schemas["ops"] = {"catalog_name": "${var.catalog}", "name": "ops",
-                      "comment": "QuoteAI operations: ingestion log, file manifest, config history, audit view"}
+                   "comment": f"QuoteAI ingestion: {s} (written only by the ingestion jobs)",
+                   "properties": {"app": "quote_ai"}} for s in cfg.schemas()}
+    schemas[OPS_SCHEMA] = {"catalog_name": "${var.catalog}", "name": OPS_SCHEMA,
+                           "comment": "QuoteAI operations: ingestion log, file manifest, config history, audit view",
+                           "properties": {"app": "quote_ai"}}
     volumes = {}
     for v in cfg.volumes():
         schema, name = v.split(".")
@@ -48,10 +52,10 @@ def pipeline_yaml(cfg: IngestConfig) -> dict:
     return {"resources": {"pipelines": {PIPELINE_KEY: {
         "name": PIPELINE_KEY,
         "catalog": "${var.catalog}",
-        "schema": "${resources.schemas.ops.name}",
+        "schema": f"${{resources.schemas.{OPS_SCHEMA}.name}}",
         "serverless": True,
         "continuous": False,
-        "libraries": [{"file": {"path": "../src/quote_ai/ingest/bronze_pipeline.py"}}],
+        "libraries": [{"file": {"path": "../../src/quote_ai/ingest/bronze_pipeline.py"}}],
         "environment": {"dependencies": DEPENDENCIES[:2]},
         "configuration": {
             "quote_ai.src_path": "${workspace.file_path}/src",

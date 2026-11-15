@@ -5,9 +5,9 @@ normalized to snake_case, the lineage columns are added, the expectations applie
 per key, the latest release winning. A replay, or a device in both the full release and an update, can't duplicate.
 New columns are added (schema evolution); rows that don't fit go to _rescued_data instead of failing the load.
 
-Pipeline configuration (set by the bundle, resources/quote_ai_ingest_bronze.pipeline.yml):
+Pipeline configuration (set by the bundle, resources/quote_ai/quote_ai_ingest_bronze.pipeline.yml):
   quote_ai.src_path       the bundle's src folder, so quote_ai imports
-  quote_ai.config_path    config/ingest/sources.yml
+  quote_ai.config_path    config/quote_ai/ingest/sources.yml
   quote_ai.catalog        the environment's catalog
   quote_ai.schemas        logical=physical schema names, comma-separated (dev prefixes them per developer)
 """

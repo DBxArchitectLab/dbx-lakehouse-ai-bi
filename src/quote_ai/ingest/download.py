@@ -5,7 +5,7 @@
 
 Nothing there is edited or deleted. Landing the same release again is a no-op; a file re-published under the same
 name with different content is refused (LandingConflict), because the landing zone is the record of what was
-published. Every file landed gets a row in ops.ingestion_file with its size, MD5 and SHA-256.
+published. Every file landed gets a row in quote_ai_ops.ingestion_file with its size, MD5 and SHA-256.
 """
 from __future__ import annotations
 

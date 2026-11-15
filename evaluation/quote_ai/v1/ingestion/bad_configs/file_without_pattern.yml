@@ -5,9 +5,9 @@ sources:
     description: full release
     owner: data-platform
     schedule: once
-    volume: gudid_bronze.releases
+    volume: quote_ai_gudid_bronze.releases
     landing: full
     format: csv
     tables:
-      - target: gudid_bronze.device_raw
+      - target: quote_ai_gudid_bronze.device_raw
         keys: [primary_di]

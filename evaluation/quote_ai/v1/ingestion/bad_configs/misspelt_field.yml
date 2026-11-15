@@ -6,10 +6,10 @@ sources:
     description: synthetic
     owner: sales-ops
     shedule: on_demand
-    volume: sales_bronze.landing
+    volume: quote_ai_sales_bronze.landing
     landing: dbxlab
     format: csv
     tables:
-      - target: sales_bronze.price_book_raw
+      - target: quote_ai_sales_bronze.price_book_raw
         pattern: "price_book*.csv"
         keys: [price_book_id]

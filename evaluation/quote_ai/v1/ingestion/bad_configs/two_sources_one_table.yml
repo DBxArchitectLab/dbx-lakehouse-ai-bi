@@ -5,18 +5,18 @@ sources:
     description: a
     owner: sales-ops
     schedule: on_demand
-    volume: sales_bronze.landing
+    volume: quote_ai_sales_bronze.landing
     landing: a
     format: csv
     tables:
-      - { target: sales_bronze.price_book_raw, pattern: "a*.csv", keys: [price_book_id] }
+      - { target: quote_ai_sales_bronze.price_book_raw, pattern: "a*.csv", keys: [price_book_id] }
   - name: prices_b
     type: file
     description: b
     owner: sales-ops
     schedule: on_demand
-    volume: sales_bronze.landing
+    volume: quote_ai_sales_bronze.landing
     landing: b
     format: csv
     tables:
-      - { target: sales_bronze.price_book_raw, pattern: "b*.csv", keys: [price_book_id] }
+      - { target: quote_ai_sales_bronze.price_book_raw, pattern: "b*.csv", keys: [price_book_id] }

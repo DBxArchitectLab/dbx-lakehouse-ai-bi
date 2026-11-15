@@ -1,6 +1,6 @@
 # QuoteAI ingestion: one entry per source, one engine (src/quote_ai/ingest). Checked by the schema in
 # src/quote_ai/ingest/config.py on every pull request. After a change, regenerate the bundle resources:
-#   python scripts/gen_ingest_resources.py
+#   python scripts/quote_ai/gen_ingest_resources.py
 #
 # Column names are normalized to snake_case on load (PrimaryDI -> primary_di), so keys are written in snake_case.
 # Every bronze row also gets _source, _file_or_request, _load_id, _ingested_at and _release_date: not configurable.
@@ -18,7 +18,7 @@ sources:
     description: AccessGUDID delimited full release, every device as published
     owner: data-platform
     schedule: once
-    volume: gudid_bronze.releases
+    volume: quote_ai_gudid_bronze.releases
     landing: full
     download:
       url: "https://accessgudid.nlm.nih.gov/release_files/download/AccessGUDID_Delimited_Full_Release_{date:%Y%m%d}.zip"
@@ -26,27 +26,27 @@ sources:
     format: csv
     options: { sep: "|", header: "true", quote: "\u0000" }
     tables:
-      - target: gudid_bronze.device_raw
+      - target: quote_ai_gudid_bronze.device_raw
         pattern: "device*.txt"
         keys: [primary_di]
         comment: One row per device identifier, the current published version
         expectations:
           primary_di_present: { rule: "primary_di IS NOT NULL", action: drop }
-      - target: gudid_bronze.identifiers_raw
+      - target: quote_ai_gudid_bronze.identifiers_raw
         pattern: "identifiers*.txt"
         keys: [primary_di, device_id]
         comment: Every identifier of a device, including package levels and their quantities
         expectations:
           device_id_present: { rule: "device_id IS NOT NULL", action: drop }
-      - target: gudid_bronze.device_sizes_raw
+      - target: quote_ai_gudid_bronze.device_sizes_raw
         pattern: "deviceSizes*.txt"
         keys: [primary_di, size_type, size_text]
         comment: Clinically relevant sizes (glove sizes S to XL)
-      - target: gudid_bronze.product_codes_raw
+      - target: quote_ai_gudid_bronze.product_codes_raw
         pattern: "productCodes*.txt"
         keys: [primary_di, product_code]
         comment: FDA product codes (LZA, LZC, ... for exam gloves)
-      - target: gudid_bronze.gmdn_terms_raw
+      - target: quote_ai_gudid_bronze.gmdn_terms_raw
         pattern: "gmdnTerms*.txt"
         keys: [primary_di, gmdn_pt_name]
         comment: GMDN preferred terms
@@ -59,7 +59,7 @@ sources:
     description: AccessGUDID daily update releases, the device versions published that day
     owner: data-platform
     schedule: daily
-    volume: gudid_bronze.releases
+    volume: quote_ai_gudid_bronze.releases
     landing: daily
     download:
       url: "https://accessgudid.nlm.nih.gov/release_files/download/gudid_daily_update_{date:%Y%m%d}.zip"
@@ -68,7 +68,7 @@ sources:
     format: xml
     options: { rowTag: "device" }
     tables:
-      - target: gudid_bronze.daily_device_raw
+      - target: quote_ai_gudid_bronze.daily_device_raw
         pattern: "*.xml"
         keys: [public_device_record_key, public_version_number]
         comment: Device versions from the daily updates, as published
@@ -85,12 +85,12 @@ sources:
     base_url: "https://accessgudid.nlm.nih.gov/api/v3/"
     endpoint: devices/history.json
     ids_from:
-      table: gudid_bronze.daily_device_raw
+      table: quote_ai_gudid_bronze.daily_device_raw
       column: public_device_record_key
       param: record_key
     api: { max_rps: 2, retries: 5, backoff_s: 2, max_requests_per_run: 2000, partitions: 2 }
     tables:
-      - target: gudid_bronze.api_device_history
+      - target: quote_ai_gudid_bronze.api_device_history
         keys: [public_device_record_key, public_version_number]
         comment: Every published version of the devices that changed, one row per version
 
@@ -100,18 +100,18 @@ sources:
     description: DBxLab Medical Supply synthetic price book, inventory and customers (demo data)
     owner: sales-ops
     schedule: on_demand
-    volume: sales_bronze.landing
+    volume: quote_ai_sales_bronze.landing
     landing: dbxlab
     generator: dbxlab_synthetic
     format: csv
     options: { sep: ",", header: "true" }
     tables:
-      - target: sales_bronze.price_book_raw
+      - target: quote_ai_sales_bronze.price_book_raw
         pattern: "price_book*.csv"
         keys: [price_book_id, sku_id, tier, min_units]
-      - target: sales_bronze.inventory_raw
+      - target: quote_ai_sales_bronze.inventory_raw
         pattern: "inventory*.csv"
         keys: [snapshot_id, sku_id]
-      - target: sales_bronze.customer_raw
+      - target: quote_ai_sales_bronze.customer_raw
         pattern: "customer*.csv"
         keys: [account_id]

@@ -31,7 +31,8 @@ TARGET_COLUMN = {"di": "primary_di", "record_key": "public_device_record_key"}
 
 
 class Names(BaseModel):
-    """Logical names in the config (gudid_bronze.device_raw) to physical names in this environment: the catalog of
+    """Logical names in the config (quote_ai_gudid_bronze.device_raw) to physical names in this environment: the
+    catalog of
     the bundle target, and the schema names it deployed (prefixed per developer in dev)."""
     catalog: str
     schemas: dict[str, str] = {}

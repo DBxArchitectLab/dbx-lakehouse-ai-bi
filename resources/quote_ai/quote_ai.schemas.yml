@@ -1,0 +1,56 @@
+# QuoteAI schemas and volumes (AI-01): a schema per layer and domain, each with a comment saying what lives there.
+# Every QuoteAI object is prefixed quote_ai_ and tagged app: quote_ai, so it's easy to find and control in the shared
+# catalog. Picked up by databricks.yml (include: resources/quote_ai/*.yml).
+# The ingestion schemas (quote_ai_gudid_bronze, quote_ai_sales_bronze, quote_ai_ops) and the landing volumes are
+# generated from config/quote_ai/ingest/sources.yml in AI-02: quote_ai_ingest.schemas.yml, next to this file.
+# Dev isolation: the dev target is mode: development, which prefixes every schema below again
+# (dev_<user>_quote_ai_product). Code never hard-codes a schema name; jobs get it from ${resources.schemas.<key>.name}.
+resources:
+  schemas:
+    quote_ai_gudid_silver:
+      catalog_name: ${var.catalog}
+      name: quote_ai_gudid_silver
+      comment: AccessGUDID devices, cleaned, with every version kept (public data)
+      properties: { app: quote_ai }
+    quote_ai_gudid_gold:
+      catalog_name: ${var.catalog}
+      name: quote_ai_gudid_gold
+      comment: The glove subset of GUDID with package levels (public data)
+      properties: { app: quote_ai }
+    quote_ai_product:
+      catalog_name: ${var.catalog}
+      name: quote_ai_product
+      comment: DBxLab SKU model and evidence (demo)
+      properties: { app: quote_ai }
+    quote_ai_sales:
+      catalog_name: ${var.catalog}
+      name: quote_ai_sales
+      comment: DBxLab customers, price book, inventory, quotes and quote events (demo)
+      properties: { app: quote_ai }
+    quote_ai_ml:
+      catalog_name: ${var.catalog}
+      name: quote_ai_ml
+      comment: Win-prediction features and models
+      properties: { app: quote_ai }
+    quote_ai_ai:
+      catalog_name: ${var.catalog}
+      name: quote_ai_ai
+      comment: AI assets, supplier documents, requests
+      properties: { app: quote_ai }
+    quote_ai_eval:
+      catalog_name: ${var.catalog}
+      name: quote_ai_eval
+      comment: Evaluation suites and results; owned by the quality team
+      properties: { app: quote_ai }
+    quote_ai_monitoring:
+      catalog_name: ${var.catalog}
+      name: quote_ai_monitoring
+      comment: Production quality, latency and cost per quote
+      properties: { app: quote_ai }
+  volumes:
+    quote_ai_ai_documents:
+      catalog_name: ${var.catalog}
+      schema_name: ${resources.schemas.quote_ai_ai.name}
+      name: documents
+      volume_type: MANAGED
+      comment: Supplier documents and quote requests, as received

@@ -48,13 +48,9 @@ databricks.yml                  The bundle: variables and the dev, dev-shared an
 resources/                      What gets deployed: one resource per file (*.job.yml, *.schema.yml, ...)
 src/identity/, src/jobs/        Workspace-local group migration (see README_Local_Account_Group.md); unit tested
 config/group_migration.yaml     Its configuration
-src/quote_ai/                   QuoteAI, the AI series' sales agent: rules, services, storage (see README_QuoteAI.md)
-config/quote_ai/policy.yml      Its pricing and freshness policy
-config/ingest/sources.yml       QuoteAI ingestion: one entry per source; generates resources/quote_ai_ingest*.yml
-scripts/gen_ingest_resources.py  Regenerates those resources after a config change (a test checks they match)
-src/jobs/quote_ai_ingest.py     The ingestion jobs' entry point
-evaluation/v1/                  QuoteAI evaluation suites (Ingestion: bad configs CI must refuse)
-docs/ai/data-sources.md         QuoteAI data sources, their terms, where they land, the audit trail
+**/quote_ai/                    QuoteAI, the AI series' sales agent (see README_QuoteAI.md). Everything it adds lives
+                                in a quote_ai folder: config/, resources/, src/, tests/, scripts/, notebooks/,
+                                evaluation/, docs/. Its Databricks objects are prefixed quote_ai_
 pyproject.toml                  Builds src/quote_ai as a wheel, shared by jobs, the app and the agent
 src/notebooks/shared/           Notebooks for people to run by hand; copied to /Workspace/Shared (see below)
 scripts/deploy-shared-notebooks.sh  Copies src/notebooks/shared to /Workspace/Shared; run by the pipeline
