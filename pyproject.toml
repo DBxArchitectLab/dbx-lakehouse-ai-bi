@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "quote_ai"
+version = "0.1.0"
+description = "QuoteAI for DBxLab Medical Supply: rules, services and AI for the DBX Architect Lab AI series"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.7",
+    "pyyaml>=6",
+    "requests>=2.31",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+# Only the QuoteAI package is built into the wheel; the identity and lakehouse code keep running as bundle files.
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["quote_ai*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

@@ -1,0 +1,22 @@
+# GENERATED from config/quote_ai/ingest/sources.yml by scripts/quote_ai/gen_ingest_resources.py.
+# A test fails the pull request when this file and the config disagree.
+resources:
+  pipelines:
+    quote_ai_ingest_bronze:
+      name: quote_ai_ingest_bronze
+      catalog: ${var.catalog}
+      schema: ${resources.schemas.quote_ai_ops.name}
+      serverless: true
+      continuous: false
+      libraries:
+      - file:
+          path: ../../src/quote_ai/ingest/bronze_pipeline.py
+      environment:
+        dependencies:
+        - pydantic>=2.7
+        - pyyaml>=6
+      configuration:
+        quote_ai.src_path: ${workspace.file_path}/src
+        quote_ai.config_path: ${workspace.file_path}/config/quote_ai/ingest/sources.yml
+        quote_ai.catalog: ${var.catalog}
+        quote_ai.schemas: quote_ai_gudid_bronze=${resources.schemas.quote_ai_gudid_bronze.name},quote_ai_sales_bronze=${resources.schemas.quote_ai_sales_bronze.name},quote_ai_ops=${resources.schemas.quote_ai_ops.name}

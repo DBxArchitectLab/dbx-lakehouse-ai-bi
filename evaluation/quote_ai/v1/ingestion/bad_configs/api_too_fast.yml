@@ -1,0 +1,24 @@
+# expect: less than or equal to 5
+# AccessGUDID publishes no rate limit: the config can't ask for more than 5 requests a second.
+sources:
+  - name: dbxlab_synthetic
+    type: file
+    description: synthetic
+    owner: sales-ops
+    schedule: daily
+    volume: quote_ai_sales_bronze.quote_ai_landing
+    landing: dbxlab
+    format: csv
+    tables:
+      - { target: quote_ai_sales_bronze.price_book_raw, pattern: "p*.csv", keys: [price_book_id] }
+  - name: api_history
+    type: api
+    description: history
+    owner: data-platform
+    schedule: daily
+    base_url: "https://accessgudid.nlm.nih.gov/api/v3/"
+    endpoint: devices/history.json
+    ids_from: { table: quote_ai_sales_bronze.price_book_raw, column: price_book_id }
+    api: { max_rps: 50 }
+    tables:
+      - { target: quote_ai_gudid_bronze.api_device_history, keys: [public_device_record_key] }

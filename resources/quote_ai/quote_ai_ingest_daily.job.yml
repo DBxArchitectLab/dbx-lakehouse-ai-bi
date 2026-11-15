@@ -1,0 +1,145 @@
+# GENERATED from config/quote_ai/ingest/sources.yml by scripts/quote_ai/gen_ingest_resources.py.
+# A test fails the pull request when this file and the config disagree.
+resources:
+  jobs:
+    quote_ai_ingest_daily:
+      name: quote_ai_ingest_daily
+      description: 'QuoteAI ingestion, daily: gudid_daily_updates, gudid_api_device_history'
+      max_concurrent_runs: 1
+      tags:
+        app: quote_ai
+        part: ingestion
+      schedule:
+        quartz_cron_expression: 0 0 6 * * ?
+        timezone_id: UTC
+      tasks:
+      - task_key: setup
+        environment_key: default
+        spark_python_task:
+          python_file: ../../src/quote_ai/jobs/ingest_job.py
+          parameters:
+          - setup
+          - --config
+          - ${workspace.file_path}/config/quote_ai/ingest/sources.yml
+          - --catalog
+          - ${var.catalog}
+          - --schemas
+          - quote_ai_gudid_bronze=${resources.schemas.quote_ai_gudid_bronze.name},quote_ai_sales_bronze=${resources.schemas.quote_ai_sales_bronze.name},quote_ai_ops=${resources.schemas.quote_ai_ops.name}
+          - --job-id
+          - '{{job.id}}'
+          - --job-run-id
+          - '{{job.run_id}}'
+          - --bundle-target
+          - ${bundle.target}
+          - --git-commit
+          - ${bundle.git.commit}
+      - task_key: land
+        depends_on:
+        - task_key: setup
+        environment_key: default
+        spark_python_task:
+          python_file: ../../src/quote_ai/jobs/ingest_job.py
+          parameters:
+          - land
+          - --schedule
+          - daily
+          - --config
+          - ${workspace.file_path}/config/quote_ai/ingest/sources.yml
+          - --catalog
+          - ${var.catalog}
+          - --schemas
+          - quote_ai_gudid_bronze=${resources.schemas.quote_ai_gudid_bronze.name},quote_ai_sales_bronze=${resources.schemas.quote_ai_sales_bronze.name},quote_ai_ops=${resources.schemas.quote_ai_ops.name}
+          - --job-id
+          - '{{job.id}}'
+          - --job-run-id
+          - '{{job.run_id}}'
+          - --bundle-target
+          - ${bundle.target}
+          - --git-commit
+          - ${bundle.git.commit}
+      - task_key: files
+        depends_on:
+        - task_key: land
+        pipeline_task:
+          pipeline_id: ${resources.pipelines.quote_ai_ingest_bronze.id}
+      - task_key: record
+        depends_on:
+        - task_key: files
+        run_if: ALL_DONE
+        environment_key: default
+        spark_python_task:
+          python_file: ../../src/quote_ai/jobs/ingest_job.py
+          parameters:
+          - record
+          - --schedule
+          - daily
+          - --pipeline-state
+          - '{{tasks.files.result_state}}'
+          - --config
+          - ${workspace.file_path}/config/quote_ai/ingest/sources.yml
+          - --catalog
+          - ${var.catalog}
+          - --schemas
+          - quote_ai_gudid_bronze=${resources.schemas.quote_ai_gudid_bronze.name},quote_ai_sales_bronze=${resources.schemas.quote_ai_sales_bronze.name},quote_ai_ops=${resources.schemas.quote_ai_ops.name}
+          - --job-id
+          - '{{job.id}}'
+          - --job-run-id
+          - '{{job.run_id}}'
+          - --bundle-target
+          - ${bundle.target}
+          - --git-commit
+          - ${bundle.git.commit}
+      - task_key: api_gudid_api_device_history
+        depends_on:
+        - task_key: record
+        environment_key: default
+        spark_python_task:
+          python_file: ../../src/quote_ai/jobs/ingest_job.py
+          parameters:
+          - api
+          - --source
+          - gudid_api_device_history
+          - --config
+          - ${workspace.file_path}/config/quote_ai/ingest/sources.yml
+          - --catalog
+          - ${var.catalog}
+          - --schemas
+          - quote_ai_gudid_bronze=${resources.schemas.quote_ai_gudid_bronze.name},quote_ai_sales_bronze=${resources.schemas.quote_ai_sales_bronze.name},quote_ai_ops=${resources.schemas.quote_ai_ops.name}
+          - --job-id
+          - '{{job.id}}'
+          - --job-run-id
+          - '{{job.run_id}}'
+          - --bundle-target
+          - ${bundle.target}
+          - --git-commit
+          - ${bundle.git.commit}
+      - task_key: checks
+        depends_on:
+        - task_key: api_gudid_api_device_history
+        environment_key: default
+        spark_python_task:
+          python_file: ../../src/quote_ai/jobs/ingest_job.py
+          parameters:
+          - checks
+          - --config
+          - ${workspace.file_path}/config/quote_ai/ingest/sources.yml
+          - --catalog
+          - ${var.catalog}
+          - --schemas
+          - quote_ai_gudid_bronze=${resources.schemas.quote_ai_gudid_bronze.name},quote_ai_sales_bronze=${resources.schemas.quote_ai_sales_bronze.name},quote_ai_ops=${resources.schemas.quote_ai_ops.name}
+          - --job-id
+          - '{{job.id}}'
+          - --job-run-id
+          - '{{job.run_id}}'
+          - --bundle-target
+          - ${bundle.target}
+          - --git-commit
+          - ${bundle.git.commit}
+      environments:
+      - environment_key: default
+        spec:
+          environment_version: '2'
+          dependencies:
+          - pydantic>=2.7
+          - pyyaml>=6
+          - requests>=2.31

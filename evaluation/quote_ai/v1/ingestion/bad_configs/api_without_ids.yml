@@ -1,0 +1,12 @@
+# expect: an api source needs ['ids_from']
+sources:
+  - name: gudid_api_device_history
+    type: api
+    description: history
+    owner: data-platform
+    schedule: daily
+    base_url: "https://accessgudid.nlm.nih.gov/api/v3/"
+    endpoint: devices/history.json
+    tables:
+      - target: quote_ai_gudid_bronze.api_device_history
+        keys: [public_device_record_key, public_version_number]

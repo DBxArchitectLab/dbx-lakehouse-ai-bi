@@ -1,0 +1,13 @@
+# expect: every table of a file source needs a pattern
+sources:
+  - name: gudid_full_release
+    type: file
+    description: full release
+    owner: data-platform
+    schedule: once
+    volume: quote_ai_gudid_bronze.quote_ai_releases
+    landing: full
+    format: csv
+    tables:
+      - target: quote_ai_gudid_bronze.device_raw
+        keys: [primary_di]

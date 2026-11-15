@@ -48,6 +48,10 @@ databricks.yml                  The bundle: variables and the dev, dev-shared an
 resources/                      What gets deployed: one resource per file (*.job.yml, *.schema.yml, ...)
 src/identity/, src/jobs/        Workspace-local group migration (see README_Local_Account_Group.md); unit tested
 config/group_migration.yaml     Its configuration
+**/quote_ai/                    QuoteAI, the AI series' sales agent (see README_QuoteAI.md). Everything it adds lives
+                                in a quote_ai folder: config/, resources/, src/, tests/, scripts/, notebooks/,
+                                evaluation/, docs/. Its Databricks objects are prefixed quote_ai_
+pyproject.toml                  Builds src/quote_ai as a wheel, shared by jobs, the app and the agent
 src/notebooks/shared/           Notebooks for people to run by hand; copied to /Workspace/Shared (see below)
 scripts/deploy-shared-notebooks.sh  Copies src/notebooks/shared to /Workspace/Shared; run by the pipeline
 scripts/put-migration-secrets.sh   Stores the group migration's account credentials in dev and prod (once)
@@ -83,6 +87,7 @@ does, its one-time setup, and how to run it.
 | Guide | What it covers |
 | --- | --- |
 | [Workspace-local groups to account groups](README_Local_Account_Group.md) | The `identity-workspace-group-migration` job and the `identity-local-group-drift-check`: what the migration does, naming, inventory tables, setup, run order, and keeping workspaces free of local groups |
+| [QuoteAI](README_QuoteAI.md) | The AI series' application: its architecture, the Lakeside transaction, the package layout, the implementation plan and how to run the tests |
 
 ## One-time setup
 
@@ -233,6 +238,7 @@ demand (see [Deploy on demand](#deploy-on-demand)).
 | Deploy waits forever on prod | Nobody has approved | A reviewer of the `prod` environment approves the run |
 | `prod deploys only from main` / `Branch "..." is not allowed to deploy to prod` | Run workflow to prod from another branch | Merge to `main` first, then deploy `main` |
 | `Branch "..." is not allowed to deploy to dev` | That environment still has a branch rule | Step 7: no restriction for `dev` |
+| `the deployment requires destructive actions, but the current console does not support prompting` | The change deletes or recreates schemas, volumes or pipelines (for example a rename); CI can't confirm | Read the `delete ...` list in the failed run. If losing those objects (and their data) is intended, **Run workflow → dev** again with **approve_destructive** ticked. prod never auto-approves: plan a destructive prod change by hand |
 
 ## Set up as a developer (once per person)
 

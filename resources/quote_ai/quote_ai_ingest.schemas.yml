@@ -1,0 +1,35 @@
+# GENERATED from config/quote_ai/ingest/sources.yml by scripts/quote_ai/gen_ingest_resources.py.
+# A test fails the pull request when this file and the config disagree.
+resources:
+  schemas:
+    quote_ai_gudid_bronze:
+      catalog_name: ${var.catalog}
+      name: quote_ai_gudid_bronze
+      comment: 'QuoteAI ingestion: quote_ai_gudid_bronze (written only by the ingestion jobs)'
+      properties:
+        app: quote_ai
+    quote_ai_sales_bronze:
+      catalog_name: ${var.catalog}
+      name: quote_ai_sales_bronze
+      comment: 'QuoteAI ingestion: quote_ai_sales_bronze (written only by the ingestion jobs)'
+      properties:
+        app: quote_ai
+    quote_ai_ops:
+      catalog_name: ${var.catalog}
+      name: quote_ai_ops
+      comment: 'QuoteAI operations: ingestion log, file manifest, config history, audit view'
+      properties:
+        app: quote_ai
+  volumes:
+    quote_ai_releases:
+      catalog_name: ${var.catalog}
+      schema_name: ${resources.schemas.quote_ai_gudid_bronze.name}
+      name: quote_ai_releases
+      volume_type: MANAGED
+      comment: 'Landing zone: release files exactly as published; never edited'
+    quote_ai_landing:
+      catalog_name: ${var.catalog}
+      schema_name: ${resources.schemas.quote_ai_sales_bronze.name}
+      name: quote_ai_landing
+      volume_type: MANAGED
+      comment: 'Landing zone: release files exactly as published; never edited'
