@@ -142,3 +142,24 @@ def test_merge_updates_by_key_and_never_lets_an_older_version_win():
 def test_identifiers_are_checked_before_they_reach_sql():
     with pytest.raises(ValueError):
         qualified("c.s.t; DROP TABLE x")
+
+
+def test_files_dropped_by_hand_are_recorded_once(tmp_path):
+    """A source with no download and no generator: new files in <landing>/<yyyymmdd>/ get manifest rows (and so a
+    logged load ID); files already recorded, part files and non-date folders are skipped."""
+    from quote_ai.ingest.config import Source
+    s = Source(name="dbxlab_supplier_price_list", type="file", description="supplier price list, dropped by hand",
+               owner="sales-ops", schedule="on_demand", volume="quote_ai_sales_bronze.quote_ai_landing",
+               landing="supplier", format="csv",
+               tables=[{"target": "quote_ai_sales_bronze.supplier_price_raw", "pattern": "*.csv",
+                        "keys": ["supplier_id", "sku_id"]}])
+    day = tmp_path / "supplier" / "20261114"
+    day.mkdir(parents=True)
+    (day / "prices.csv").write_text("supplier_id,sku_id,price\nS1,GLOVE-A-M,6.10\n")
+    (day / "prices.csv.part").write_text("half")
+    (tmp_path / "supplier" / "notes").mkdir()
+    log = InMemoryLog()
+    first = land_source(None, s, tmp_path, log, today=D)
+    assert [(r.load_id, r.row_count, r.kind) for r in first] == \
+        [("dbxlab_supplier_price_list:20261114", 1, "manual")]
+    assert land_source(None, s, tmp_path, log, today=D) == []          # already in the manifest
