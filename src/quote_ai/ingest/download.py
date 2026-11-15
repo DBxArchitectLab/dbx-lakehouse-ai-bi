@@ -19,7 +19,7 @@ from typing import Callable
 
 from quote_ai.ingest.config import Source
 from quote_ai.ingest.http import Http
-from quote_ai.ingest.lineage import load_id_for, release_tag
+from quote_ai.ingest.lineage import load_id_for, release_date_from_path, release_tag
 from quote_ai.ingest.log import FileRecord, LogWriter, utcnow
 
 CHUNK = 1 << 20
@@ -118,6 +118,25 @@ def days_to_fetch(source: Source, log: LogWriter, today: date) -> list[date]:
     return [start + timedelta(days=i) for i in range((today - start).days + 1)]
 
 
+def record_dropped_files(source: Source, root: Path, log: LogWriter, job_run_id: str | None = None) -> list[FileRecord]:
+    """Files dropped by hand into <landing>/<yyyymmdd>/: nothing to fetch, but each new file is recorded in the
+    manifest, so its load ID belongs to a logged run like any other. Files already in the manifest are skipped."""
+    base = root / source.landing
+    if not base.exists():
+        return []
+    known = {f.path for f in log.files(source.name)}
+    out = []
+    for folder in sorted(p for p in base.iterdir() if p.is_dir()):
+        d = release_date_from_path(str(folder) + "/x")
+        if d is None or release_tag(d) != folder.name:
+            continue                                  # only <yyyymmdd> folders are releases
+        for f in sorted(p for p in folder.iterdir() if p.is_file() and not p.name.endswith(".part")):
+            if str(f).replace("\\", "/") not in known:
+                out.append(_record(source, d, f, None, job_run_id))
+    log.add_files(out)
+    return out
+
+
 def land_source(http: Http, source: Source, root: Path, log: LogWriter, today: date,
                 release_date: date | None = None, job_run_id: str | None = None,
                 generators: dict[str, Callable] | None = None) -> list[FileRecord]:
@@ -136,7 +155,7 @@ def land_source(http: Http, source: Source, root: Path, log: LogWriter, today: d
         log.add_files(out)
         return out
     if source.download is None:
-        return out          # files dropped by hand: nothing to fetch
+        return record_dropped_files(source, root, log, job_run_id)
     if source.download.kind == "full":
         if release_date is None:
             raise ValueError(f"{source.name}: a full release needs a release date (the job's release_date parameter)")
