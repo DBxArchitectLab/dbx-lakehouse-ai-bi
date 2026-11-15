@@ -125,7 +125,7 @@ def test_engine_columns_are_kept_and_collisions_refused():
 
 
 def test_release_date_and_load_id_come_from_the_landing_folder():
-    p = "/Volumes/c/quote_ai_gudid_bronze/releases/daily/20261112/gudid_daily_update_20261112.xml"
+    p = "/Volumes/c/quote_ai_gudid_bronze/quote_ai_releases/daily/20261112/gudid_daily_update_20261112.xml"
     assert release_date_from_path(p) == D
     assert load_id_for("gudid_daily_updates", "20261112") == "gudid_daily_updates:20261112"
 

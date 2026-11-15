@@ -17,6 +17,12 @@ on:
         type: choice
         options: [dev, prod]
         default: dev
+      # A deploy that deletes or recreates schemas, volumes or pipelines stops and lists them (the CLI can't prompt in
+      # CI). Review that list in the failed run, then run again with this ticked. dev only: prod never auto-approves.
+      approve_destructive:
+        description: "dev only: approve the schema/volume deletions listed by the previous failed run"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -41,7 +47,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: databricks/setup-cli@main
       - run: databricks bundle validate -t dev-shared
-      - run: databricks bundle deploy -t dev-shared
+      - run: databricks bundle deploy -t dev-shared ${{ inputs.approve_destructive && '--auto-approve' || '' }}
       - name: Copy src/notebooks/shared to /Workspace/Shared
         run: bash scripts/deploy-shared-notebooks.sh dev-shared
 

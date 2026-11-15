@@ -145,7 +145,7 @@ class Source(Strict):
     schedule: Literal["once", "daily", "weekly", "on_demand"]
     tables: list[Table] = Field(min_length=1)
     # file sources
-    volume: str | None = None          # schema.volume, e.g. quote_ai_gudid_bronze.releases
+    volume: str | None = None          # schema.volume, e.g. quote_ai_gudid_bronze.quote_ai_releases
     landing: str | None = None         # folder in the volume; files land in <landing>/<yyyymmdd>/
     download: Download | None = None   # fetched by the downloader ...
     generator: str | None = None       # ... or written by named landing code; neither = dropped by hand
@@ -173,6 +173,8 @@ class Source(Strict):
                 raise ValueError(f"{n}: a file source needs {missing}")
             if not TARGET.match(self.volume):
                 raise ValueError(f"{n}: volume must be schema.volume, got {self.volume!r}")
+            if not all(part.startswith("quote_ai_") for part in self.volume.split(".")):
+                raise ValueError(f"{n}: volume {self.volume!r}: schema and volume names start with quote_ai_")
             if self.download and self.generator:
                 raise ValueError(f"{n}: download or generator, not both")
             if self.generator and self.generator not in GENERATORS:

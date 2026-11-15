@@ -34,8 +34,8 @@ Lakeside test fixtures (`tests/quote_ai/lakeside_fixtures.py`). They aren't real
 
 | Location | What |
 | --- | --- |
-| Volume `quote_ai_gudid_bronze.releases` | Landing zone: `<full\|daily>/<yyyymmdd>/`, each zip as published and its files beside it; never edited |
-| Volume `quote_ai_sales_bronze.landing` | `dbxlab/<yyyymmdd>/`: the synthetic files |
+| Volume `quote_ai_gudid_bronze.quote_ai_releases` | Landing zone: `<full\|daily>/<yyyymmdd>/`, each zip as published and its files beside it; never edited |
+| Volume `quote_ai_sales_bronze.quote_ai_landing` | `dbxlab/<yyyymmdd>/`: the synthetic files |
 | `quote_ai_ops.ingestion_log` | One row per run of a source: status, rows per table, load IDs, watermark, job run, identity, git commit, config hash |
 | `quote_ai_ops.ingestion_file` | One row per landed file: path, URL, release date, size, MD5, SHA-256 |
 | `quote_ai_ops.ingestion_config` | The config in force, with history (SCD type 2), joined to runs by `config_hash` |

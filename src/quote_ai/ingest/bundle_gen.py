@@ -41,7 +41,7 @@ def schemas_yaml(cfg: IngestConfig) -> dict:
     volumes = {}
     for v in cfg.volumes():
         schema, name = v.split(".")
-        volumes[f"{schema}_{name}"] = {"catalog_name": "${var.catalog}",
+        volumes[name] = {"catalog_name": "${var.catalog}",
                                        "schema_name": f"${{resources.schemas.{schema}.name}}", "name": name,
                                        "volume_type": "MANAGED",
                                        "comment": "Landing zone: release files exactly as published; never edited"}

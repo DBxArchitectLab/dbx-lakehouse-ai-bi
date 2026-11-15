@@ -53,7 +53,7 @@ def test_every_quote_ai_object_is_prefixed_and_lives_in_resources_quote_ai():
             for key, spec in objs.items():
                 assert key.startswith("quote_ai_"), f"{f.name}: {kind}.{key}"
                 name = spec.get("name", "")
-                if kind in ("schemas", "jobs", "pipelines"):
+                if kind in ("schemas", "volumes", "jobs", "pipelines"):
                     assert name.startswith("quote_ai_"), f"{f.name}: {kind}.{key} is named {name!r}"
     for f in (ROOT / "resources").glob("*.yml"):
         assert "quote_ai" not in f.read_text(encoding="utf-8"), \

@@ -15,10 +15,13 @@ QuoteAI shares this repo, its bundle and its catalogs with other work. The rule,
   `resources/quote_ai/` (files named `quote_ai_*.yml`), `src/quote_ai/`, `tests/quote_ai/`, `scripts/quote_ai/`,
   `notebooks/quote_ai/`, `evaluation/quote_ai/` and `docs/quote_ai/`, plus this README. Find all of it with
   `**/quote_ai/**`.
-- **Databricks objects:** names start with `quote_ai_`. That covers schemas, jobs, pipelines, serving and gateway
-  endpoints, vector search endpoints, UC connections, dashboards and bundle resource keys. Apps and Lakebase instances
-  allow no underscores, so they use `quote-ai-`. Tables, volumes, functions and models sit inside a `quote_ai_`
-  schema. Schemas carry the property `app: quote_ai`, and jobs the tag `app: quote_ai`, for cost and usage reports.
+- **Databricks objects:** names start with `quote_ai_`. That covers schemas, volumes, jobs, pipelines, serving and
+  gateway endpoints, vector search endpoints, UC connections, dashboards and bundle resource keys. Apps and
+  Lakebase instances allow no underscores, so they use `quote-ai-`. Tables, functions and models sit inside a
+  `quote_ai_` schema.
+  In a developer's personal `dev` copy, development mode puts the bundle's standard `dev_<user>_` in front of every
+  resource (`dev_<user>_quote_ai_product`); `dev-shared` and `prod` use the exact `quote_ai_` names. Schemas carry
+  the property `app: quote_ai`, and jobs the tag `app: quote_ai`, for cost and usage reports.
 - **Enforced:** `tests/quote_ai/test_package.py` fails a pull request when a resource in `resources/quote_ai/` isn't
   prefixed, or when a QuoteAI resource sits outside that folder.
 
@@ -84,7 +87,7 @@ ingest/download.py         Landing zone: release zips into a Volume, <landing>/<
                            replays are no-ops, a re-published file is refused; every file in quote_ai_ops.ingestion_file
 ingest/http.py             Rate limit, retries with backoff on 429/5xx (Retry-After), clear errors
 ingest/gudid_client.py     AccessGUDID v3 device history, one row per published version
-ingest/api_source.py       PySpark custom data source "gudid_api": the client on the workers
+ingest/api_source.py       PySpark custom data source "quote_ai_gudid_api": the client on the workers
 ingest/bronze_pipeline.py  Lakeflow pipeline: Auto Loader -> snake_case -> lineage -> expectations -> AUTO CDC by key
 ingest/engine.py           land -> (pipeline) -> record -> api; watermarks, the request cap, the run log
 ingest/log.py              quote_ai_ops.ingestion_log, quote_ai_ops.ingestion_file, quote_ai_ops.ingestion_config, quote_ai_ops.v_ingestion_audit

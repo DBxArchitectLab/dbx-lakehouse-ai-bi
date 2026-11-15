@@ -5,7 +5,7 @@ sources:
     description: full release
     owner: data-platform
     schedule: once
-    volume: quote_ai_gudid_bronze.releases
+    volume: quote_ai_gudid_bronze.quote_ai_releases
     landing: full
     format: csv
     tables:

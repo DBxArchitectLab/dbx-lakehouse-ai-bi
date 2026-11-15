@@ -18,7 +18,7 @@ sources:
     description: AccessGUDID delimited full release, every device as published
     owner: data-platform
     schedule: once
-    volume: quote_ai_gudid_bronze.releases
+    volume: quote_ai_gudid_bronze.quote_ai_releases
     landing: full
     download:
       url: "https://accessgudid.nlm.nih.gov/release_files/download/AccessGUDID_Delimited_Full_Release_{date:%Y%m%d}.zip"
@@ -59,7 +59,7 @@ sources:
     description: AccessGUDID daily update releases, the device versions published that day
     owner: data-platform
     schedule: daily
-    volume: quote_ai_gudid_bronze.releases
+    volume: quote_ai_gudid_bronze.quote_ai_releases
     landing: daily
     download:
       url: "https://accessgudid.nlm.nih.gov/release_files/download/gudid_daily_update_{date:%Y%m%d}.zip"
@@ -100,7 +100,7 @@ sources:
     description: DBxLab Medical Supply synthetic price book, inventory and customers (demo data)
     owner: sales-ops
     schedule: on_demand
-    volume: quote_ai_sales_bronze.landing
+    volume: quote_ai_sales_bronze.quote_ai_landing
     landing: dbxlab
     generator: dbxlab_synthetic
     format: csv

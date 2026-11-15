@@ -21,15 +21,15 @@ resources:
       properties:
         app: quote_ai
   volumes:
-    quote_ai_gudid_bronze_releases:
+    quote_ai_releases:
       catalog_name: ${var.catalog}
       schema_name: ${resources.schemas.quote_ai_gudid_bronze.name}
-      name: releases
+      name: quote_ai_releases
       volume_type: MANAGED
       comment: 'Landing zone: release files exactly as published; never edited'
-    quote_ai_sales_bronze_landing:
+    quote_ai_landing:
       catalog_name: ${var.catalog}
       schema_name: ${resources.schemas.quote_ai_sales_bronze.name}
-      name: landing
+      name: quote_ai_landing
       volume_type: MANAGED
       comment: 'Landing zone: release files exactly as published; never edited'

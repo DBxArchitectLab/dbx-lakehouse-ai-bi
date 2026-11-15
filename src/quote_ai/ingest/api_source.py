@@ -1,4 +1,4 @@
-"""AccessGUDID v3 as a Spark source: spark.read.format("gudid_api").options(...).load().
+"""AccessGUDID v3 as a Spark source: spark.read.format("quote_ai_gudid_api").options(...).load().
 
 A PySpark custom data source (the Python Data Source API, pyspark.sql.datasource): it reads like any other Spark
 source, splits the identifiers across partitions (workers), and keeps retries and rate limits in one place
@@ -39,7 +39,7 @@ class IdsPartition(InputPartition):
 class GudidApiDataSource(DataSource):
     @classmethod
     def name(cls) -> str:
-        return "gudid_api"
+        return "quote_ai_gudid_api"
 
     def schema(self) -> str:
         return HISTORY_SCHEMA

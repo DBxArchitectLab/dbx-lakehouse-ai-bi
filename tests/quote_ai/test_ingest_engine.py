@@ -50,8 +50,8 @@ class FakeIO:
 def test_names_map_logical_to_physical():
     assert NAMES.table("quote_ai_gudid_bronze.device_raw") == \
         "dbxarchitectlab_dev.dev_me_quote_ai_gudid_bronze.device_raw"
-    assert NAMES.volume_path("quote_ai_gudid_bronze.releases").as_posix() == \
-        "/Volumes/dbxarchitectlab_dev/dev_me_quote_ai_gudid_bronze/releases"
+    assert NAMES.volume_path("quote_ai_gudid_bronze.quote_ai_releases").as_posix() == \
+        "/Volumes/dbxarchitectlab_dev/dev_me_quote_ai_gudid_bronze/quote_ai_releases"
 
 
 # ------------------------------------------------------------------ the run log

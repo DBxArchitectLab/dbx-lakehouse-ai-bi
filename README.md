@@ -238,6 +238,7 @@ demand (see [Deploy on demand](#deploy-on-demand)).
 | Deploy waits forever on prod | Nobody has approved | A reviewer of the `prod` environment approves the run |
 | `prod deploys only from main` / `Branch "..." is not allowed to deploy to prod` | Run workflow to prod from another branch | Merge to `main` first, then deploy `main` |
 | `Branch "..." is not allowed to deploy to dev` | That environment still has a branch rule | Step 7: no restriction for `dev` |
+| `the deployment requires destructive actions, but the current console does not support prompting` | The change deletes or recreates schemas, volumes or pipelines (for example a rename); CI can't confirm | Read the `delete ...` list in the failed run. If losing those objects (and their data) is intended, **Run workflow → dev** again with **approve_destructive** ticked. prod never auto-approves: plan a destructive prod change by hand |
 
 ## Set up as a developer (once per person)
 

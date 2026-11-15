@@ -65,6 +65,6 @@ def test_download_url_template():
 def test_a_generator_must_be_known():
     with pytest.raises(ValidationError, match="unknown generator"):
         Source(name="x", type="file", description="x", owner="o", schedule="daily",
-               volume="quote_ai_sales_bronze.landing",
+               volume="quote_ai_sales_bronze.quote_ai_landing",
                landing="x", format="csv", generator="run_anything",
                tables=[{"target": "quote_ai_sales_bronze.x_raw", "pattern": "*.csv", "keys": ["id"]}])

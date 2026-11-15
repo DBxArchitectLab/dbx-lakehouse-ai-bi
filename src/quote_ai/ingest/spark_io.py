@@ -52,7 +52,7 @@ class SparkIO:
         self.spark.sql(sql)
 
     def read_api(self, options: dict[str, str]):
-        return self.spark.read.format("gudid_api").options(**options).load()
+        return self.spark.read.format("quote_ai_gudid_api").options(**options).load()
 
     def merge(self, df, target_fqn: str, keys: list[str], lineage: dict[str, Any], sequence_by: str) -> dict:
         from pyspark.sql import functions as F

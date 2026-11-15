@@ -5,7 +5,7 @@ sources:
     description: a
     owner: sales-ops
     schedule: on_demand
-    volume: quote_ai_sales_bronze.landing
+    volume: quote_ai_sales_bronze.quote_ai_landing
     landing: a
     format: csv
     tables:
@@ -15,7 +15,7 @@ sources:
     description: b
     owner: sales-ops
     schedule: on_demand
-    volume: quote_ai_sales_bronze.landing
+    volume: quote_ai_sales_bronze.quote_ai_landing
     landing: b
     format: csv
     tables:

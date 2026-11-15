@@ -6,7 +6,7 @@ sources:
     description: synthetic
     owner: sales-ops
     schedule: on_demand
-    volume: quote_ai_sales_bronze.landing
+    volume: quote_ai_sales_bronze.quote_ai_landing
     landing: dbxlab
     format: csv
     tables:

@@ -1,10 +1,11 @@
 # QuoteAI schemas and volumes (AI-01): a schema per layer and domain, each with a comment saying what lives there.
-# Every QuoteAI object is prefixed quote_ai_ and tagged app: quote_ai, so it's easy to find and control in the shared
-# catalog. Picked up by databricks.yml (include: resources/quote_ai/*.yml).
+# Every QuoteAI object, schemas and volumes included, is named quote_ai_* and tagged app: quote_ai, so it's easy to
+# find and control in the shared catalog. Picked up by databricks.yml (include: resources/quote_ai/*.yml).
 # The ingestion schemas (quote_ai_gudid_bronze, quote_ai_sales_bronze, quote_ai_ops) and the landing volumes are
 # generated from config/quote_ai/ingest/sources.yml in AI-02: quote_ai_ingest.schemas.yml, next to this file.
-# Dev isolation: the dev target is mode: development, which prefixes every schema below again
-# (dev_<user>_quote_ai_product). Code never hard-codes a schema name; jobs get it from ${resources.schemas.<key>.name}.
+# Dev isolation: in a developer's personal dev copy, development mode puts the bundle's standard dev_<user>_ in front
+# of every resource (dev_<user>_quote_ai_product); dev-shared and prod use the exact quote_ai_ names. Code never
+# hard-codes a schema name; jobs get it from ${resources.schemas.<key>.name}.
 resources:
   schemas:
     quote_ai_gudid_silver:
@@ -48,9 +49,9 @@ resources:
       comment: Production quality, latency and cost per quote
       properties: { app: quote_ai }
   volumes:
-    quote_ai_ai_documents:
+    quote_ai_documents:
       catalog_name: ${var.catalog}
       schema_name: ${resources.schemas.quote_ai_ai.name}
-      name: documents
+      name: quote_ai_documents
       volume_type: MANAGED
       comment: Supplier documents and quote requests, as received
