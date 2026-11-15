@@ -1,0 +1,117 @@
+# QuoteAI ingestion: one entry per source, one engine (src/quote_ai/ingest). Checked by the schema in
+# src/quote_ai/ingest/config.py on every pull request. After a change, regenerate the bundle resources:
+#   python scripts/gen_ingest_resources.py
+#
+# Column names are normalized to snake_case on load (PrimaryDI -> primary_di), so keys are written in snake_case.
+# Every bronze row also gets _source, _file_or_request, _load_id, _ingested_at and _release_date: not configurable.
+#
+# Verify before the first workspace run (AI-02, "verify before recording"): the file names inside the AccessGUDID zips,
+# their column names (and so the keys below), the daily update format and its row tag, and whether the v3 history API
+# accepts record_key. Sources: https://accessgudid.nlm.nih.gov/download and /resources/developers/v3.
+version: 1
+
+sources:
+  # The monthly full release, pipe-delimited ("AccessGUDID_Delimited_Full_Release_YYYYMMDD.zip", about 400 MB).
+  # Loaded once (or again to rebuild): job quote_ai_ingest_once, with the release date as a parameter.
+  - name: gudid_full_release
+    type: file
+    description: AccessGUDID delimited full release, every device as published
+    owner: data-platform
+    schedule: once
+    volume: gudid_bronze.releases
+    landing: full
+    download:
+      url: "https://accessgudid.nlm.nih.gov/release_files/download/AccessGUDID_Delimited_Full_Release_{date:%Y%m%d}.zip"
+      kind: full
+    format: csv
+    options: { sep: "|", header: "true", quote: "\u0000" }
+    tables:
+      - target: gudid_bronze.device_raw
+        pattern: "device*.txt"
+        keys: [primary_di]
+        comment: One row per device identifier, the current published version
+        expectations:
+          primary_di_present: { rule: "primary_di IS NOT NULL", action: drop }
+      - target: gudid_bronze.identifiers_raw
+        pattern: "identifiers*.txt"
+        keys: [primary_di, device_id]
+        comment: Every identifier of a device, including package levels and their quantities
+        expectations:
+          device_id_present: { rule: "device_id IS NOT NULL", action: drop }
+      - target: gudid_bronze.device_sizes_raw
+        pattern: "deviceSizes*.txt"
+        keys: [primary_di, size_type, size_text]
+        comment: Clinically relevant sizes (glove sizes S to XL)
+      - target: gudid_bronze.product_codes_raw
+        pattern: "productCodes*.txt"
+        keys: [primary_di, product_code]
+        comment: FDA product codes (LZA, LZC, ... for exam gloves)
+      - target: gudid_bronze.gmdn_terms_raw
+        pattern: "gmdnTerms*.txt"
+        keys: [primary_di, gmdn_pt_name]
+        comment: GMDN preferred terms
+
+  # The daily update releases ("gudid_daily_update_YYYYMMDD.zip"): small, incremental, not every day.
+  # Their format is not the delimited layout: kept in their own bronze table and merged with the full release in
+  # silver (AI-03). Format and row tag to confirm against a real file.
+  - name: gudid_daily_updates
+    type: file
+    description: AccessGUDID daily update releases, the device versions published that day
+    owner: data-platform
+    schedule: daily
+    volume: gudid_bronze.releases
+    landing: daily
+    download:
+      url: "https://accessgudid.nlm.nih.gov/release_files/download/gudid_daily_update_{date:%Y%m%d}.zip"
+      kind: daily
+      lookback_days: 7
+    format: xml
+    options: { rowTag: "device" }
+    tables:
+      - target: gudid_bronze.daily_device_raw
+        pattern: "*.xml"
+        keys: [public_device_record_key, public_version_number]
+        comment: Device versions from the daily updates, as published
+        expectations:
+          record_key_present: { rule: "public_device_record_key IS NOT NULL", action: drop }
+
+  # AccessGUDID API v3, device history, for the records that changed in today's update files only: the bulk files
+  # fill the lakehouse; the API enriches what changed. Never one call per row of the full release.
+  - name: gudid_api_device_history
+    type: api
+    description: AccessGUDID v3 device history for the records changed since the last successful run
+    owner: data-platform
+    schedule: daily
+    base_url: "https://accessgudid.nlm.nih.gov/api/v3/"
+    endpoint: devices/history.json
+    ids_from:
+      table: gudid_bronze.daily_device_raw
+      column: public_device_record_key
+      param: record_key
+    api: { max_rps: 2, retries: 5, backoff_s: 2, max_requests_per_run: 2000, partitions: 2 }
+    tables:
+      - target: gudid_bronze.api_device_history
+        keys: [public_device_record_key, public_version_number]
+        comment: Every published version of the devices that changed, one row per version
+
+  # DBxLab's synthetic commercial data: price book, stock, customers. Written by landing code on demand.
+  - name: dbxlab_synthetic
+    type: file
+    description: DBxLab Medical Supply synthetic price book, inventory and customers (demo data)
+    owner: sales-ops
+    schedule: on_demand
+    volume: sales_bronze.landing
+    landing: dbxlab
+    generator: dbxlab_synthetic
+    format: csv
+    options: { sep: ",", header: "true" }
+    tables:
+      - target: sales_bronze.price_book_raw
+        pattern: "price_book*.csv"
+        keys: [price_book_id, sku_id, tier, min_units]
+      - target: sales_bronze.inventory_raw
+        pattern: "inventory*.csv"
+        keys: [snapshot_id, sku_id]
+      - target: sales_bronze.customer_raw
+        pattern: "customer*.csv"
+        keys: [account_id]

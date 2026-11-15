@@ -1,0 +1,15 @@
+# expect: ingestion writes only to
+# Ingestion lands bronze; silver and gold are built from it (AI-03), never loaded directly.
+sources:
+  - name: dbxlab_synthetic
+    type: file
+    description: synthetic
+    owner: sales-ops
+    schedule: on_demand
+    volume: sales_bronze.landing
+    landing: dbxlab
+    format: csv
+    tables:
+      - target: sales_gold.price_book
+        pattern: "price_book*.csv"
+        keys: [price_book_id]

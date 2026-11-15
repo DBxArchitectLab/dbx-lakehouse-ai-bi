@@ -1,0 +1,13 @@
+# QuoteAI policy: values the rules read, kept out of code so a change is reviewed like any other change.
+# Demo values for DBxLab Medical Supply (synthetic).
+
+pricing:
+  rep_discount_limit: 0.05       # up to 5% below list: no approval
+  manager_discount_limit: 0.15   # up to 15%: a sales manager approves that quote version; above: refused
+
+freshness:                       # ISSUED is refused if any input behind the quote is older than this
+  max_age_hours:
+    gudid: 48
+    evidence: 48
+    inventory: 24
+    price_book: 168

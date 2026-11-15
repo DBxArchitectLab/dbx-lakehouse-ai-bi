@@ -1,0 +1,22 @@
+# expect: one source per bronze table
+sources:
+  - name: prices_a
+    type: file
+    description: a
+    owner: sales-ops
+    schedule: on_demand
+    volume: sales_bronze.landing
+    landing: a
+    format: csv
+    tables:
+      - { target: sales_bronze.price_book_raw, pattern: "a*.csv", keys: [price_book_id] }
+  - name: prices_b
+    type: file
+    description: b
+    owner: sales-ops
+    schedule: on_demand
+    volume: sales_bronze.landing
+    landing: b
+    format: csv
+    tables:
+      - { target: sales_bronze.price_book_raw, pattern: "b*.csv", keys: [price_book_id] }

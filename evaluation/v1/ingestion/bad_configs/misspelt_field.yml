@@ -1,0 +1,15 @@
+# expect: Extra inputs are not permitted
+# "shedule" instead of "schedule": a typo fails the pull request instead of being silently ignored.
+sources:
+  - name: dbxlab_synthetic
+    type: file
+    description: synthetic
+    owner: sales-ops
+    shedule: on_demand
+    volume: sales_bronze.landing
+    landing: dbxlab
+    format: csv
+    tables:
+      - target: sales_bronze.price_book_raw
+        pattern: "price_book*.csv"
+        keys: [price_book_id]
