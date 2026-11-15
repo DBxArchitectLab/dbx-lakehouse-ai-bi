@@ -5,9 +5,11 @@
 # Column names are normalized to snake_case on load (PrimaryDI -> primary_di), so keys are written in snake_case.
 # Every bronze row also gets _source, _file_or_request, _load_id, _ingested_at and _release_date: not configurable.
 #
-# Verify before the first workspace run (AI-02, "verify before recording"): the file names inside the AccessGUDID zips,
-# their column names (and so the keys below), the daily update format and its row tag, and whether the v3 history API
-# accepts record_key. Sources: https://accessgudid.nlm.nih.gov/download and /resources/developers/v3.
+# Checked against AccessGUDID on 2026-11-15: the delimited full release holds device.txt, identifiers.txt,
+# deviceSizes.txt, productCodes.txt, gmdnTerms.txt (and contacts, sterilization, environment, submissions), with the
+# columns the keys below name after snake_case; daily updates are one XML file per zip, one <device> element per
+# record; the v3 history API accepts di and record_key and returns history keyed by version.
+# Still to confirm in the first workspace run: AUTO CDC with null key parts (device_sizes_raw) and serverless egress.
 version: 1
 
 sources:
@@ -40,8 +42,8 @@ sources:
           device_id_present: { rule: "device_id IS NOT NULL", action: drop }
       - target: quote_ai_gudid_bronze.device_sizes_raw
         pattern: "deviceSizes*.txt"
-        keys: [primary_di, size_type, size_text]
-        comment: Clinically relevant sizes (glove sizes S to XL)
+        keys: [primary_di, size_type, size_unit, size_value, size_text]
+        comment: Clinically relevant sizes (glove sizes S to XL); a size is a unit and value, or a text
       - target: quote_ai_gudid_bronze.product_codes_raw
         pattern: "productCodes*.txt"
         keys: [primary_di, product_code]
