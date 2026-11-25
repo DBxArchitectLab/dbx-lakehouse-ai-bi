@@ -94,6 +94,8 @@ resources:
           python_file: ../../src/quote_ai/jobs/ingest_job.py
           parameters:
           - checks
+          - --schedule
+          - on_demand
           - --config
           - ${workspace.file_path}/config/quote_ai/ingest/sources.yml
           - --catalog
@@ -113,6 +115,7 @@ resources:
         spec:
           environment_version: '2'
           dependencies:
+          - ../../dist/*.whl
           - pydantic>=2.7
           - pyyaml>=6
           - requests>=2.31

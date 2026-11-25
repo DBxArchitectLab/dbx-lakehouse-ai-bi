@@ -5,6 +5,10 @@ Kept thin on purpose: the decisions are in engine.py, download.py and log.py, te
 from __future__ import annotations
 
 from datetime import date, datetime
+import logging
+import random
+import time
+from collections.abc import Callable
 from typing import Any
 
 from quote_ai.ingest import api_source
@@ -14,6 +18,34 @@ from quote_ai.ingest.log import DDL, FileRecord, RunRecord, config_rows, utcnow
 
 _RUN_COLS = list(RunRecord.model_fields)
 _FILE_COLS = list(FileRecord.model_fields)
+_DELTA_WRITE_ATTEMPTS = 5
+_DELTA_RETRY_BASE_SECONDS = 0.5
+_DELTA_CONFLICT_CODES = (
+    "DELTA_CONCURRENT_APPEND",
+    "DELTA_CONCURRENT_WRITE",
+    "DELTA_CONCURRENT_DELETE_READ",
+    "DELTA_CONCURRENT_DELETE_DELETE",
+)
+_LOGGER = logging.getLogger(__name__)
+
+
+def _retry_delta_write(operation: Callable[[], Any]) -> Any:
+    """Retry an idempotent write only when Delta reports a concurrency conflict."""
+    for attempt in range(_DELTA_WRITE_ATTEMPTS):
+        try:
+            return operation()
+        except Exception as error:
+            getter = getattr(error, "getCondition", None) or getattr(error, "getErrorClass", None)
+            condition = getter() if callable(getter) else None
+            details = f"[{condition}] {error}"
+            if not any(
+                f"[{code}]" in details or f"[{code}_" in details or f"[{code}." in details
+                for code in _DELTA_CONFLICT_CODES
+            ) or attempt == _DELTA_WRITE_ATTEMPTS - 1:
+                raise
+            delay = _DELTA_RETRY_BASE_SECONDS * (2 ** attempt) * random.uniform(1.0, 2.0)
+            _LOGGER.warning("Delta write conflict; retrying attempt %s/%s", attempt + 2, _DELTA_WRITE_ATTEMPTS)
+            time.sleep(delay)
 
 
 def _lit(v: Any) -> str:
@@ -97,8 +129,9 @@ class DeltaLog:
     def _upsert_run(self, rec: RunRecord) -> None:
         d = rec.model_dump()
         values = ", ".join(f"{_lit(d[c])} AS `{c}`" for c in _RUN_COLS)
-        self.io.execute(f"MERGE INTO {self.ops}.ingestion_log t USING (SELECT {values}) s ON t.run_id = s.run_id "
-                        f"WHEN MATCHED THEN UPDATE SET * WHEN NOT MATCHED THEN INSERT *")
+        statement = (f"MERGE INTO {self.ops}.ingestion_log t USING (SELECT {values}) s ON t.run_id = s.run_id "
+                 f"WHEN MATCHED THEN UPDATE SET * WHEN NOT MATCHED THEN INSERT *")
+        _retry_delta_write(lambda: self.io.execute(statement))
 
     start = _upsert_run
     finish = _upsert_run
@@ -112,10 +145,10 @@ class DeltaLog:
         for r in recs:
             d = r.model_dump()
             values = ", ".join(f"{_lit(d[c])} AS `{c}`" for c in _FILE_COLS)
-            out = self.io.spark.sql(
-                f"MERGE INTO {self.ops}.ingestion_file t USING (SELECT {values}) s "
-                f"ON t.source = s.source AND t.path = s.path AND t.sha256 = s.sha256 "
-                f"WHEN NOT MATCHED THEN INSERT *").collect()
+            statement = (f"MERGE INTO {self.ops}.ingestion_file t USING (SELECT {values}) s "
+                         f"ON t.source = s.source AND t.path = s.path AND t.sha256 = s.sha256 "
+                         f"WHEN NOT MATCHED THEN INSERT *")
+            out = _retry_delta_write(lambda: self.io.spark.sql(statement).collect())
             n += int(out[0].asDict().get("num_inserted_rows", 0)) if out else 0
         return n
 
@@ -123,6 +156,16 @@ class DeltaLog:
         where = f"source = {_lit(source)}" + (f" AND job_run_id = {_lit(job_run_id)}" if job_run_id else "")
         rows = self.io.spark.sql(f"SELECT * FROM {self.ops}.ingestion_file WHERE {where}").collect()
         return [FileRecord.model_validate(r.asDict()) for r in rows]
+
+    def pending_load_ids(self, source: str) -> list[str]:
+        """Find manifested loads without a successful audit entry for this source."""
+        rows = self.io.query(
+            f"SELECT DISTINCT f.load_id FROM {self.ops}.ingestion_file f LEFT ANTI JOIN "
+            f"(SELECT explode(load_ids) AS load_id FROM {self.ops}.ingestion_log "
+            f"WHERE source = {_lit(source)} AND status IN ('succeeded', 'partial')) completed "
+            f"ON f.load_id = completed.load_id WHERE f.source = {_lit(source)} ORDER BY f.load_id"
+        )
+        return [row[0] for row in rows]
 
     def last_success(self, source: str) -> RunRecord | None:
         rows = self.io.spark.sql(

@@ -95,9 +95,18 @@ def test_daily_fetches_only_missing_days_and_skips_days_without_a_release(tmp_pa
     assert days_to_fetch(DAILY, log, date(2026, 11, 14)) == [date(2026, 11, 13), date(2026, 11, 14)]
 
 
-def test_a_full_release_needs_its_date(tmp_path):
-    with pytest.raises(ValueError, match="release date"):
+def test_a_full_release_reports_when_no_published_date_is_found(tmp_path):
+    with pytest.raises(ValueError, match="no full release found"):
         land_source(FakeHttp({}), FULL, tmp_path, InMemoryLog(), today=D)
+
+
+def test_blank_full_release_date_selects_latest_available_release(tmp_path):
+    published = date(2026, 11, 5)
+    http = FakeHttp({FULL.download.url_for(published): FULL_ZIP})
+    records = land_source(http, FULL, tmp_path, InMemoryLog(), today=D)
+    assert {record.release_date for record in records} == {published}
+    assert len(http.urls) == 8
+    assert [folder.name for folder in (tmp_path / "full").iterdir()] == ["20261105"]
 
 
 def test_synthetic_files_are_deterministic(tmp_path):

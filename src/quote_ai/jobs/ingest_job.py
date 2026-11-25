@@ -36,7 +36,7 @@ def _blank(v):
 
 def parse(argv):
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("command", choices=["setup", "land", "record", "api", "checks"])
+    p.add_argument("command", choices=["setup", "land", "record", "classify", "api", "checks"])
     p.add_argument("--config", required=True)
     p.add_argument("--catalog", required=True)
     p.add_argument("--schemas", default="")
@@ -84,12 +84,17 @@ def main(argv=None) -> int:
         if failed:
             print(f"failed: {failed}")
             return 1
+    elif a.command == "classify":
+        from quote_ai.ingest.classification import refresh_classification
+
+        result = refresh_classification(spark, cfg, names, ops)
+        print(f"glove category snapshot refreshed: {result}")
     elif a.command == "api":
         rec = engine.run_api(cfg, a.source, names, log, io, ctx, today)
         print(f"{rec.source}: {rec.status}, {rec.rows_read} rows, watermark {rec.watermark_from} -> {rec.watermark_to}")
     elif a.command == "checks":
         failures = 0
-        for c in bronze_checks(cfg, names.table, ops):
+        for c in bronze_checks(cfg, names.table, ops, schedule=a.schedule):
             if not io.table_exists(names.table(c.table)):
                 print(f"SKIP {c.table} {c.name}: table not created yet")
                 continue

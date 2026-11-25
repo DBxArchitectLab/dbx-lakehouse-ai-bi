@@ -200,9 +200,47 @@ class Source(Strict):
         return self
 
 
+class ClassificationRule(Strict):
+    """An exact category match with explicit review and source provenance."""
+
+    rule_id: str = Field(pattern=r"^[a-z][a-z0-9_]*$")
+    field: Literal["product_code", "gmdn_code", "gmdn_term"]
+    value: str = Field(min_length=1)
+    decision: Literal["included", "excluded"] = "included"
+    verified: bool = False
+    evidence_url: str = Field(pattern=r"^https://")
+    reviewed_by: str | None = None
+
+    @model_validator(mode="after")
+    def _reviewed(self) -> "ClassificationRule":
+        if not self.value.strip():
+            raise ValueError("classification rule values must not be blank")
+        if self.verified and not (self.reviewed_by or "").strip():
+            raise ValueError("verified classification rules require reviewed_by")
+        return self
+
+
+class GloveClassification(Strict):
+    """Versioned category rules; commercial and clinical eligibility are separate."""
+
+    version: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
+    rules: list[ClassificationRule] = Field(min_length=1)
+    api_source: str = "gudid_api_device_history"
+    full_source: str = "gudid_full_release"
+    daily_source: str = "gudid_daily_updates"
+
+    @model_validator(mode="after")
+    def _unique_rules(self) -> "GloveClassification":
+        identifiers = [rule.rule_id for rule in self.rules]
+        if len(identifiers) != len(set(identifiers)):
+            raise ValueError("classification rule_id values must be unique")
+        return self
+
+
 class IngestConfig(Strict):
     version: Literal[1] = 1
     sources: list[Source] = Field(min_length=1)
+    classification: GloveClassification | None = None
 
     @model_validator(mode="after")
     def _consistent(self) -> "IngestConfig":
@@ -222,6 +260,22 @@ class IngestConfig(Strict):
         for s in self.sources:
             if s.ids_from and s.ids_from.table not in file_targets:
                 raise ValueError(f"{s.name}: ids_from.table {s.ids_from.table} is not loaded by a file source")
+        if self.classification:
+            sources = {source.name: source for source in self.sources}
+            references = (self.classification.full_source, self.classification.daily_source,
+                          self.classification.api_source)
+            if any(name not in sources for name in references):
+                raise ValueError("classification references an unknown source")
+            for name in references[:2]:
+                if sources[name].type != "file" or not sources[name].enabled:
+                    raise ValueError("classification inputs must be enabled file sources")
+            api_source = sources[self.classification.api_source]
+            if api_source.type != "api":
+                raise ValueError("classification API source must be an API source")
+            daily_targets = {table.target for table in sources[self.classification.daily_source].tables}
+            if (api_source.ids_from.table not in daily_targets or api_source.ids_from.param != "record_key"
+                    or api_source.ids_from.column != "public_device_record_key"):
+                raise ValueError("classification API must select public_device_record_key from the configured daily source")
         return self
 
     def source(self, name: str) -> Source:

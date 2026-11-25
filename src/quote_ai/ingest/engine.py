@@ -67,7 +67,7 @@ def land(cfg: IngestConfig, schedule: str, names: Names, log: LogWriter, ctx: Ru
          release_date: date | None = None, http_factory: Callable[[], Http] = Http,
          generators: dict[str, Callable] | None = None, only: str | None = None) -> dict[str, list[str]]:
     """Land every enabled file source of this schedule. Each gets a run row: running with its load IDs (finished by
-    record), no_new_files, or failed. Returns the load IDs landed per source."""
+    record), no_new_files, or failed. Include manifested loads awaiting a successful pipeline run."""
     landed: dict[str, list[str]] = {}
     for s in cfg.enabled(type="file", schedule=schedule):
         if only and s.name != only:
@@ -77,11 +77,11 @@ def land(cfg: IngestConfig, schedule: str, names: Names, log: LogWriter, ctx: Ru
         try:
             files = land_source(http_factory(), s, names.volume_path(s.volume), log, today, release_date,
                                 ctx.job_run_id, generators)
+            rec.load_ids = sorted({f.load_id for f in files} | set(log.pending_load_ids(s.name)))
         except Exception as e:
             rec.status, rec.error, rec.ended_at = "failed", f"{type(e).__name__}: {e}"[:4000], utcnow()
             log.finish(rec)
             raise
-        rec.load_ids = sorted({f.load_id for f in files})
         if not rec.load_ids:
             rec.status, rec.ended_at = "no_new_files", utcnow()
         log.finish(rec)
@@ -117,7 +117,8 @@ def record(cfg: IngestConfig, schedule: str, names: Names, log: LogWriter, io: S
 # ------------------------------------------------------------------ 4. api
 
 def changed_ids_sql(source_fqn: str, column: str, target_fqn: str | None, target_column: str,
-                    since: str | None) -> str:
+                    since: str | None, classification_fqn: str | None = None,
+                    classification_hash: str | None = None) -> str:
     """The identifiers to look up: changed since the watermark, and not already held at that release or later (the
     cache, which also lets a capped run continue where it stopped)."""
     col = qualified(column)
@@ -126,6 +127,27 @@ def changed_ids_sql(source_fqn: str, column: str, target_fqn: str | None, target
         sql.append(f"LEFT ANTI JOIN {qualified(target_fqn)} t ON t.{qualified(target_column)} = s.{col} "
                    f"AND t.`_release_date` >= s.`_release_date`")
     where = [f"s.{col} IS NOT NULL"]
+    if classification_fqn:
+        if classification_hash is None or len(classification_hash) != 64 or any(
+            character not in "0123456789abcdef" for character in classification_hash
+        ):
+            raise ValueError("classification_hash must be a SHA-256 digest")
+        where.append(
+            f"EXISTS (SELECT 1 FROM {qualified(classification_fqn)} category "
+            f"WHERE category.public_device_record_key = s.{col} "
+            "AND category.source_release = s.`_release_date` "
+            "AND category.source_load_id = s.`_load_id` "
+            "AND category.public_version_number <=> CAST(s.`public_version_number` AS STRING) "
+            "AND category.decision = 'included' "
+            f"AND category.classification_hash = '{classification_hash}')"
+        )
+        where.append(
+            f"NOT EXISTS (SELECT 1 FROM {qualified(source_fqn)} newer "
+            f"WHERE newer.{col} = s.{col} AND (newer.`_release_date` > s.`_release_date` OR "
+            "(newer.`_release_date` = s.`_release_date` AND "
+            "coalesce(try_cast(newer.`public_version_number` AS DECIMAL(38,0)), -1) > "
+            "coalesce(try_cast(s.`public_version_number` AS DECIMAL(38,0)), -1))))"
+        )
     if since:
         date.fromisoformat(since)          # a date, never free text, goes into the SQL
         where.append(f"s.`_release_date` > DATE'{since}'")
@@ -143,10 +165,29 @@ def run_api(cfg: IngestConfig, name: str, names: Names, log: LogWriter, io: Spar
     with logged_run(log, rec) as rec:
         last = log.last_success(s.name)
         since = last.watermark_to if (last and s.ids_from.changed_since == "watermark") else None
+        classification_fqn = None
+        classification_hash = None
+        if cfg.classification and s.name == cfg.classification.api_source:
+            from quote_ai.ingest.classification import CLASSIFICATION_TABLE, classification_digest
+
+            if s.ids_from.param != "record_key":
+                raise ValueError("Glove-filtered API enrichment requires record_key selection")
+            classification_fqn = f"{names.catalog}.{names.schema('quote_ai_ops')}.{CLASSIFICATION_TABLE}"
+            if not io.table_exists(classification_fqn):
+                raise RuntimeError("Glove classification snapshot is missing; run the classify task before API enrichment")
+            classification_hash = classification_digest(cfg.classification)
+            stale = io.query(
+                f"SELECT count(*) FROM {qualified(classification_fqn)} "
+                f"WHERE classification_hash IS NULL OR classification_hash <> '{classification_hash}'"
+            )
+            if stale[0][0]:
+                raise RuntimeError("Glove classification rules changed; refresh the classification snapshot")
+            since = None
         rec.watermark_from = since
         rows = io.query(changed_ids_sql(names.table(s.ids_from.table), s.ids_from.column,
                                         target if io.table_exists(target) else None,
-                                        TARGET_COLUMN[s.ids_from.param], since))
+                                        TARGET_COLUMN[s.ids_from.param], since,
+                                        classification_fqn, classification_hash))
         if not rows:
             rec.status, rec.watermark_to, rec.rows_read = "no_new_files", since, 0
             return rec
