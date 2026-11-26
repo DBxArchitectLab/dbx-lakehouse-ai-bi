@@ -1,0 +1,10 @@
+# Back-end dependencies of the QuoteAI app (installed by Databricks Apps). The quote_ai package itself is vendored
+# into _vendor/ by scripts/quote_ai/build_app.py.
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pydantic>=2.7
+pyyaml>=6
+databricks-sdk>=0.30
+databricks-sql-connector>=3.1
+openai>=1.30
+mlflow>=3.1

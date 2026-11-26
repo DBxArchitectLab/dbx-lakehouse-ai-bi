@@ -1,0 +1,10 @@
+# Quote documents (AI-07): issued quote PDFs from AI-25. Also the QuoteAI app's anchor: its full name, given to the app
+# as a resource, tells the app the catalog and the deployed schema names.
+resources:
+  volumes:
+    quote_ai_quotes:
+      catalog_name: ${var.catalog}
+      schema_name: ${resources.schemas.quote_ai_sales.name}
+      name: quote_ai_quotes
+      volume_type: MANAGED
+      comment: Quote documents (issued quotes from AI-25); the QuoteAI app's anchor to its catalog and schemas

@@ -22,10 +22,10 @@ class Check:
     sql: str            # returns one number; the check passes when it is 0
 
 
-def bronze_checks(cfg: IngestConfig, table_fqn, ops_fqn: str) -> list[Check]:
+def bronze_checks(cfg: IngestConfig, table_fqn, ops_fqn: str, schedule: str | None = None) -> list[Check]:
     """table_fqn maps a logical target to its physical name (engine.Names.table)."""
     out, seen = [], set()
-    for s in cfg.enabled():
+    for s in cfg.enabled(schedule=schedule):
         for t in s.tables:
             if t.target in seen:
                 continue

@@ -1,4 +1,5 @@
-"""Where quotes live, behind one interface: in memory for tests, Delta from AI-07, Lakebase from AI-20.
+"""Where quotes live, behind one interface: in memory for tests, Delta from AI-07 (storage/delta_repository.py),
+Lakebase from AI-20.
 
 The swap in AI-20 changes the implementation, not QuoteService.
 """
@@ -23,6 +24,7 @@ class QuoteRepository(Protocol):
     def insert(self, quote: Quote, event: QuoteEvent) -> None: ...
     def update(self, quote: Quote, expected_revision: int, event: QuoteEvent, key: str | None = None) -> None: ...
     def events(self, quote_id: str) -> list[QuoteEvent]: ...
+    def list_quotes(self, rep: str | None = None) -> list[Quote]: ...
     def idempotent_result(self, key: str) -> str | None: ...
     def remember(self, key: str, quote_id: str) -> None: ...
 
@@ -65,6 +67,12 @@ class InMemoryQuoteRepository:
 
     def events(self, quote_id: str) -> list[QuoteEvent]:
         return [e for e in self._events if e.quote_id == quote_id]
+
+    def list_quotes(self, rep: str | None = None) -> list[Quote]:
+        """The quotes (of one rep), the most recently changed first."""
+        last = {e.quote_id: i for i, e in enumerate(self._events)}
+        qs = [q for q in self._quotes.values() if rep is None or q.rep == rep]
+        return [q.model_copy(deep=True) for q in sorted(qs, key=lambda q: -last.get(q.quote_id, -1))]
 
     def idempotent_result(self, key: str) -> str | None:
         return self._keys.get(key)

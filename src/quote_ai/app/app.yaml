@@ -1,0 +1,35 @@
+# QuoteAI v1 (AI-07) on Databricks Apps: uvicorn runs the FastAPI back end, which also serves the React build.
+# Every value below comes from an app resource (resources/quote_ai/quote_ai_app.app.yml), never a literal, so the
+# same file runs in dev, dev-shared and prod. Before deploying: python scripts/quote_ai/build_app.py
+# AI-20: quotes and memory on Lakebase (QUOTE_AI_STORE=lakebase; PGHOST, PGDATABASE, PGUSER come from the lakebase
+# resource); the chat calls the agent app on the Agent Runtime (its URL looked up from this app's name). During the
+# migration, QUOTE_AI_READ_ONLY=1 pauses writes. AI-21: the approvers' group.
+# Verify before recording: the port (DATABRICKS_APP_PORT) and valueFrom for uc_securable resources.
+command: ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+env:
+  - name: DATABRICKS_WAREHOUSE_ID
+    valueFrom: sql-warehouse
+  - name: QUOTE_AI_QUOTES_VOLUME
+    valueFrom: quotes-volume
+  - name: QUOTE_AI_EXTRACT_SERVICE
+    valueFrom: extract-service
+  - name: MLFLOW_EXPERIMENT_ID
+    valueFrom: traces
+  - name: MLFLOW_TRACKING_URI
+    value: databricks
+  - name: QUOTE_AI_PROMPT_ALIAS
+    value: champion
+  - name: QUOTE_AI_DOCUMENTS_VOLUME
+    valueFrom: documents-volume
+  - name: QUOTE_AI_GENIE_SPACE_ID
+    valueFrom: genie-space
+  - name: QUOTE_AI_WIN_ENDPOINT
+    valueFrom: win-model
+  - name: QUOTE_AI_CHAT_SERVICE
+    valueFrom: chat-service
+  - name: QUOTE_AI_STORE
+    value: lakebase
+  - name: QUOTE_AI_LAKEBASE_INSTANCE
+    value: quote-ai-db
+  - name: QUOTE_AI_MANAGERS_GROUP
+    value: DBxLab_Sales_Managers

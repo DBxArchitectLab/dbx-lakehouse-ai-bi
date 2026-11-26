@@ -1,0 +1,36 @@
+# The win model's endpoint (AI-14): Model Serving is right for this classic ML model (agents use Agent Runtime).
+# One served entity, quote_ai_ml.win_model from the target's catalog, Small, scale to zero; named per target
+# (quote_ai_win_model_dev). The served version is the @champion's: quote_ai_ml_register moves the endpoint when it
+# promotes, and a deploy uses var.quote_ai_win_model_version, which CD resolves from the alias
+# (scripts/quote_ai/win_model_smoke.py --champion-version); never a version picked by hand.
+# Feature lookups at serving time give it the same account and SKU features as training; the request carries only
+# the quote's own values. Requests and responses land in an inference table in quote_ai_monitoring.
+# Called by the app (an app resource, CAN_QUERY) and, from AI-18, by the agent's identity.
+# First deploy in a new environment: win_model version 1 must exist (run quote_ai_ml_features, quote_ai_train and
+# quote_ai_ml_register once) before this endpoint can be created.
+# Verify before recording: the bundle schema for model_serving_endpoints and ai_gateway inference tables, whether a
+# served entity can follow an alias directly, online feature lookups for UC feature tables (an online store), and
+# serverless Model Serving with scale to zero in the region.
+resources:
+  model_serving_endpoints:
+    quote_ai_win_model:
+      name: quote_ai_win_model_${var.quote_ai_target}
+      config:
+        served_entities:
+          - name: win_model
+            entity_name: ${var.catalog}.${resources.schemas.quote_ai_ml.name}.win_model
+            entity_version: ${var.quote_ai_win_model_version}
+            workload_size: Small
+            scale_to_zero_enabled: true
+      ai_gateway:
+        inference_table_config:
+          enabled: true
+          catalog_name: ${var.catalog}
+          schema_name: ${resources.schemas.quote_ai_monitoring.name}
+          table_name_prefix: quote_ai_win_model
+      tags:
+        - key: app
+          value: quote_ai
+      permissions:
+        - service_principal_name: ${var.quote_ai_pipeline_sp}     # the register job and the smoke test
+          level: CAN_QUERY

@@ -12,6 +12,7 @@ resources:
       schedule:
         quartz_cron_expression: 0 0 6 * * ?
         timezone_id: UTC
+        pause_status: UNPAUSED
       tasks:
       - task_key: setup
         environment_key: default
@@ -89,9 +90,31 @@ resources:
           - ${bundle.target}
           - --git-commit
           - ${bundle.git.commit}
-      - task_key: api_gudid_api_device_history
+      - task_key: classify_gloves
         depends_on:
         - task_key: record
+        environment_key: default
+        spark_python_task:
+          python_file: ../../src/quote_ai/jobs/ingest_job.py
+          parameters:
+          - classify
+          - --config
+          - ${workspace.file_path}/config/quote_ai/ingest/sources.yml
+          - --catalog
+          - ${var.catalog}
+          - --schemas
+          - quote_ai_gudid_bronze=${resources.schemas.quote_ai_gudid_bronze.name},quote_ai_sales_bronze=${resources.schemas.quote_ai_sales_bronze.name},quote_ai_ops=${resources.schemas.quote_ai_ops.name}
+          - --job-id
+          - '{{job.id}}'
+          - --job-run-id
+          - '{{job.run_id}}'
+          - --bundle-target
+          - ${bundle.target}
+          - --git-commit
+          - ${bundle.git.commit}
+      - task_key: api_gudid_api_device_history
+        depends_on:
+        - task_key: classify_gloves
         environment_key: default
         spark_python_task:
           python_file: ../../src/quote_ai/jobs/ingest_job.py
@@ -121,6 +144,8 @@ resources:
           python_file: ../../src/quote_ai/jobs/ingest_job.py
           parameters:
           - checks
+          - --schedule
+          - daily
           - --config
           - ${workspace.file_path}/config/quote_ai/ingest/sources.yml
           - --catalog
@@ -140,6 +165,7 @@ resources:
         spec:
           environment_version: '2'
           dependencies:
+          - ../../dist/*.whl
           - pydantic>=2.7
           - pyyaml>=6
           - requests>=2.31

@@ -1,0 +1,18 @@
+# The operating dashboard (AI-26): the platform team's view of QuoteAI in production. Its datasets read the same
+# quote_ai_monitoring objects as the app's Ops page (freshness, slo_daily, cost_per_quote), so the two can never
+# disagree (linted in tests/quote_ai/test_operations.py). Shared with the sales managers and the platform team.
+# Verify before recording: dataset_catalog / dataset_schema (as quote_ai_sales_overview.dashboard.yml).
+resources:
+  dashboards:
+    quote_ai_operations:
+      display_name: "QuoteAI - Operations"
+      file_path: ../../src/quote_ai/semantic/operations.lvdash.json
+      warehouse_id: ${var.quote_ai_warehouse_id}
+      dataset_catalog: ${var.catalog}
+      dataset_schema: ${resources.schemas.quote_ai_monitoring.name}
+      embed_credentials: false
+      permissions:
+        - group_name: ${var.quote_ai_managers_group}
+          level: CAN_RUN
+        - group_name: DBX_Architect_Lab_Admin
+          level: CAN_MANAGE

@@ -1,0 +1,84 @@
+# QuoteAI v1 (AI-07): the Databricks App, a FastAPI back end with React screens (src/quote_ai/app).
+# The name carries the target (quote-ai-dev, quote-ai-prod; apps allow no underscores). The app runs as its own
+# service principal; its resources give it least privilege: CAN_USE on the warehouse, EXECUTE on the extract model
+# service, the quotes volume (which also tells the app its catalog and schema names), and the traces experiment.
+# Table grants (SELECT on the product model, MODIFY on the quote tables) are made by the quote_ai_app_grants job
+# (quote_ai_app_grants.job.yml), because the tables are created by a job, not by the bundle. Only DBxLab's sales reps can open the app.
+# Before deploying: python scripts/quote_ai/build_app.py   (the React build and the vendored quote_ai package)
+# Season 2 adds the documents volume (WRITE_VOLUME, which includes read: request PDFs, AI-09) and the Genie space
+# (CAN_RUN, AI-11; quote_ai_genie_space_id is set once the quote_ai_genie job has created the agent). My pipeline
+# (AI-10) embeds the sales overview dashboard, which viewers open with their own credentials.
+# Season 3 adds the win model endpoint (CAN_QUERY, AI-14): the Quote page's win chance at several prices.
+# Season 4 adds the chat model service (EXECUTE, AI-16): the compare view's explanations.
+# Season 5: the agent chat (AI-18, AI-19: in-process); AI-20 adds the Lakebase database (quotes and memory; the agent
+# itself runs as its own app, quote_ai_agent.app.yml, which grants this app CAN_USE); AI-21 opens the app to the sales
+# managers too (the Approval inbox, shown by role and checked again by the API).
+# AI-24: user authorization. The app asks for the scopes sql and dashboards.genie; Databricks Apps forwards the
+# signed-in rep's token (X-Forwarded-Access-Token) and the back end runs price, quote-access and Genie calls as the rep,
+# so Unity Catalog's row filter and cost mask apply (quote_ai_security_setup.job.yml). The app's own service principal
+# is cut down to audit and evaluation (quote_ai_app_grants: SELECT on the Delta quote copy, no price book, no sales
+# facts). Verify before recording: the user_api_scopes key and the scope names.
+# Verify before recording: the app resource keys, uc_securable MODEL_SERVICE and VOLUME WRITE_VOLUME, the genie_space
+# resource keys, the database resource keys and the PG* variables it sets, and the service principal reference.
+resources:
+  apps:
+    quote_ai_app:
+      name: quote-ai-${bundle.target}
+      description: 'QuoteAI v3: from a free-text request to an approved, issued quote, with the agent chat (demo data)'
+      source_code_path: ../../src/quote_ai/app
+      user_api_scopes: [sql, dashboards.genie]          # AI-24: the rep's token, for SQL and Genie only
+      resources:
+        - name: sql-warehouse
+          sql_warehouse:
+            id: ${var.quote_ai_warehouse_id}
+            permission: CAN_USE
+        - name: extract-service
+          uc_securable:
+            securable_type: MODEL_SERVICE
+            securable_full_name: ${var.catalog}.${resources.schemas.quote_ai_ai.name}.${resources.model_services.quote_ai_extract.model_service_id}
+            permission: EXECUTE
+        - name: quotes-volume
+          uc_securable:
+            securable_type: VOLUME
+            securable_full_name: ${var.catalog}.${resources.schemas.quote_ai_sales.name}.${resources.volumes.quote_ai_quotes.name}
+            permission: READ_VOLUME
+        - name: traces
+          experiment:
+            experiment_id: ${resources.experiments.quote_ai_app_traces.id}
+            permission: CAN_EDIT
+        # AI-09: request PDFs are written to the documents volume (requests/) and parsed there
+        - name: documents-volume
+          uc_securable:
+            securable_type: VOLUME
+            securable_full_name: ${var.catalog}.${resources.schemas.quote_ai_ai.name}.${resources.volumes.quote_ai_documents.name}
+            permission: WRITE_VOLUME
+        # AI-11: the Ask the data panel asks the DBxLab sales analyst (created by the quote_ai_genie job)
+        - name: genie-space
+          genie_space:
+            name: DBxLab sales analyst
+            space_id: ${var.quote_ai_genie_space_id}
+            permission: CAN_RUN
+        # AI-16: the compare view's explanations (RAG through Unity Gateway). The AI Search indexes are not app
+        # resources: SELECT on them is granted by the quote_ai_search_index and quote_ai_knowledge_index jobs.
+        - name: chat-service
+          uc_securable:
+            securable_type: MODEL_SERVICE
+            securable_full_name: ${var.catalog}.${resources.schemas.quote_ai_ai.name}.${resources.model_services.quote_ai_chat.model_service_id}
+            permission: EXECUTE
+        # AI-14: the win chance next to each candidate price (informs the rep; never sets the price)
+        - name: win-model
+          serving_endpoint:
+            name: ${resources.model_serving_endpoints.quote_ai_win_model.name}
+            permission: CAN_QUERY
+        # AI-20: quotes, conversations and confirmed customer facts on Lakebase (quote_ai_lakebase.database.yml)
+        - name: lakebase
+          database:
+            instance_name: ${var.quote_ai_lakebase_instance}
+            database_name: quote_ai
+            permission: CAN_CONNECT_AND_CREATE
+      permissions:
+        - group_name: ${var.quote_ai_reps_group}
+          level: CAN_USE
+        # AI-21: the approvers (the Approval inbox); the API checks the group again on every approval
+        - group_name: ${var.quote_ai_managers_group}
+          level: CAN_USE

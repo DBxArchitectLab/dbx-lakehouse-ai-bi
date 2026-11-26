@@ -1,0 +1,395 @@
+{
+  "datasets": [
+    {
+      "name": "freshness",
+      "displayName": "Freshness per source and input",
+      "queryLines": [
+        "SELECT kind, name, as_of, age_hours FROM freshness ORDER BY kind, name"
+      ]
+    },
+    {
+      "name": "slo_days",
+      "displayName": "SLOs per day",
+      "queryLines": [
+        "SELECT day, quotes, p95_latency_s, under_target_share, stale_refusals, grounded_rate, ",
+        "eligibility_violations, unknown_share, cost_per_quote_usd, ok FROM slo_daily ",
+        "WHERE day >= date_sub(current_date(), 7) ORDER BY day"
+      ]
+    },
+    {
+      "name": "cost_steps",
+      "displayName": "Cost per quote by step",
+      "queryLines": [
+        "SELECT step, sum(cost_usd) / count(DISTINCT day || quote_id) AS cost_per_quote_usd ",
+        "FROM cost_per_quote WHERE day >= date_sub(current_date(), 7) GROUP BY step"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "operations",
+      "displayName": "Operations",
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layout": [
+        {
+          "widget": {
+            "name": "title",
+            "multilineTextboxSpec": {
+              "lines": [
+                "## QuoteAI - Operations",
+                "Demo data (synthetic). The same quote_ai_monitoring tables as the app's Ops page: freshness per source and input, the daily SLOs (config/quote_ai/slo.yml) and cost per quote by step, including the app's own compute. Runbook: docs/quote_ai/runbooks/incidents.md."
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 6,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "freshness_table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "freshness",
+                  "fields": [
+                    {
+                      "name": "kind",
+                      "expression": "`kind`"
+                    },
+                    {
+                      "name": "name",
+                      "expression": "`name`"
+                    },
+                    {
+                      "name": "as_of",
+                      "expression": "`as_of`"
+                    },
+                    {
+                      "name": "age_hours",
+                      "expression": "`age_hours`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "kind",
+                    "displayName": "kind"
+                  },
+                  {
+                    "fieldName": "name",
+                    "displayName": "name"
+                  },
+                  {
+                    "fieldName": "as_of",
+                    "displayName": "as of"
+                  },
+                  {
+                    "fieldName": "age_hours",
+                    "displayName": "age hours"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Freshness: hours since the last successful run (target under 24 h)"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 3,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "cost_by_step",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "cost_steps",
+                  "fields": [
+                    {
+                      "name": "step",
+                      "expression": "`step`"
+                    },
+                    {
+                      "name": "cost_per_quote_usd",
+                      "expression": "`cost_per_quote_usd`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "step",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "fieldName": "cost_per_quote_usd",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Cost per quote by step, last 7 days (USD)"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 2,
+            "width": 3,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "latency",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "slo_days",
+                  "fields": [
+                    {
+                      "name": "day",
+                      "expression": "`day`"
+                    },
+                    {
+                      "name": "p95_latency_s",
+                      "expression": "`p95_latency_s`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "day",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fieldName": "p95_latency_s",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "p95 latency per quote (target 20 s)"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 8,
+            "width": 3,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "quality",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "slo_days",
+                  "fields": [
+                    {
+                      "name": "day",
+                      "expression": "`day`"
+                    },
+                    {
+                      "name": "grounded_rate",
+                      "expression": "`grounded_rate`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "day",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fieldName": "grounded_rate",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Grounded rate on live samples (target 0.90)"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 8,
+            "width": 3,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "slo_table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "slo_days",
+                  "fields": [
+                    {
+                      "name": "day",
+                      "expression": "`day`"
+                    },
+                    {
+                      "name": "quotes",
+                      "expression": "`quotes`"
+                    },
+                    {
+                      "name": "p95_latency_s",
+                      "expression": "`p95_latency_s`"
+                    },
+                    {
+                      "name": "under_target_share",
+                      "expression": "`under_target_share`"
+                    },
+                    {
+                      "name": "stale_refusals",
+                      "expression": "`stale_refusals`"
+                    },
+                    {
+                      "name": "grounded_rate",
+                      "expression": "`grounded_rate`"
+                    },
+                    {
+                      "name": "eligibility_violations",
+                      "expression": "`eligibility_violations`"
+                    },
+                    {
+                      "name": "unknown_share",
+                      "expression": "`unknown_share`"
+                    },
+                    {
+                      "name": "cost_per_quote_usd",
+                      "expression": "`cost_per_quote_usd`"
+                    },
+                    {
+                      "name": "ok",
+                      "expression": "`ok`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "day",
+                    "displayName": "day"
+                  },
+                  {
+                    "fieldName": "quotes",
+                    "displayName": "quotes"
+                  },
+                  {
+                    "fieldName": "p95_latency_s",
+                    "displayName": "p95 latency s"
+                  },
+                  {
+                    "fieldName": "under_target_share",
+                    "displayName": "under target share"
+                  },
+                  {
+                    "fieldName": "stale_refusals",
+                    "displayName": "stale refusals"
+                  },
+                  {
+                    "fieldName": "grounded_rate",
+                    "displayName": "grounded rate"
+                  },
+                  {
+                    "fieldName": "eligibility_violations",
+                    "displayName": "eligibility violations"
+                  },
+                  {
+                    "fieldName": "unknown_share",
+                    "displayName": "unknown share"
+                  },
+                  {
+                    "fieldName": "cost_per_quote_usd",
+                    "displayName": "cost per quote usd"
+                  },
+                  {
+                    "fieldName": "ok",
+                    "displayName": "ok"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "SLOs per day"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 14,
+            "width": 6,
+            "height": 6
+          }
+        }
+      ]
+    }
+  ],
+  "uiSettings": {
+    "theme": {
+      "widgetHeaderAlignment": "ALIGNMENT_UNSPECIFIED"
+    }
+  }
+}

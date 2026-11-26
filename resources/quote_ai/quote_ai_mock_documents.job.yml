@@ -1,0 +1,82 @@
+# Synthetic supplier documents (AI-09): (re)generate the demo PDFs into the quote_ai_documents volume, register them as
+# received, run the documents pipeline, then the evidence views. Run after quote_ai_product_model and
+# quote_ai_attributes. The demo's drops are job parameters (cumulative, comma-separated):
+#   databricks bundle run quote_ai_mock_documents -t dev
+#   databricks bundle run quote_ai_mock_documents -t dev --params scenarios=glove_a_report
+#   databricks bundle run quote_ai_mock_documents -t dev --params scenarios=glove_a_report,other_catalog_report,spec_v4
+# Spec sheets are signed off by demo:qa (demo data only). A test report is signed off by a person:
+#   databricks bundle run quote_ai_document_signoff -t dev --params document_id=RPT-CHEMO-A,version=1,reviewer=<you>
+resources:
+  jobs:
+    quote_ai_mock_documents:
+      name: quote_ai_mock_documents
+      description: 'QuoteAI: synthetic supplier documents into the volume, registered, parsed and verified (demo data)'
+      max_concurrent_runs: 1
+      tags:
+        app: quote_ai
+        part: data
+      parameters:
+        - name: scenarios
+          default: ""
+      tasks:
+        - task_key: setup
+          environment_key: default
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/documents_job.py
+            parameters: [setup, --catalog, "${var.catalog}", --schemas, &schemas "quote_ai_product=${resources.schemas.quote_ai_product.name},quote_ai_sales=${resources.schemas.quote_ai_sales.name},quote_ai_ai=${resources.schemas.quote_ai_ai.name}"]
+        - task_key: generate
+          depends_on: [{ task_key: setup }]
+          environment_key: default
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/documents_job.py
+            parameters: [generate, --demo-signoff, --scenarios, "{{job.parameters.scenarios}}", --volume, &volume "${var.catalog}.${resources.schemas.quote_ai_ai.name}.${resources.volumes.quote_ai_documents.name}", --catalog, "${var.catalog}", --schemas, *schemas]
+        - task_key: documents
+          depends_on: [{ task_key: generate }]
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.quote_ai_documents.id}
+        - task_key: views
+          depends_on: [{ task_key: documents }]
+          environment_key: default
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/documents_job.py
+            parameters: [views, --catalog, "${var.catalog}", --schemas, *schemas]
+      environments:
+        - environment_key: default
+          spec:
+            environment_version: '2'
+            dependencies:
+              - pydantic>=2.7
+              - pyyaml>=6
+
+    # A QA reviewer signs one document version off (check 5), then the evidence is rebuilt.
+    quote_ai_document_signoff:
+      name: quote_ai_document_signoff
+      description: 'QuoteAI: a QA reviewer signs off one supplier document version; the evidence is rebuilt'
+      max_concurrent_runs: 1
+      tags:
+        app: quote_ai
+        part: data
+      parameters:
+        - name: document_id
+          default: ""
+        - name: version
+          default: "1"
+        - name: reviewer
+          default: ""
+      tasks:
+        - task_key: signoff
+          environment_key: default
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/documents_job.py
+            parameters: [signoff, --document-id, "{{job.parameters.document_id}}", --version, "{{job.parameters.version}}", --reviewer, "{{job.parameters.reviewer}}", --catalog, "${var.catalog}", --schemas, "quote_ai_product=${resources.schemas.quote_ai_product.name}"]
+        - task_key: documents
+          depends_on: [{ task_key: signoff }]
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.quote_ai_documents.id}
+      environments:
+        - environment_key: default
+          spec:
+            environment_version: '2'
+            dependencies:
+              - pydantic>=2.7
+              - pyyaml>=6

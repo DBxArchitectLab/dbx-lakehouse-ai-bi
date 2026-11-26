@@ -1,0 +1,30 @@
+{"case_id": "C-001", "question": "Explain the differences for the customer", "scope": ["GLOVE-A", "GLOVE-C", "GLOVE-D"], "expected_sources": ["table"], "expect_no_evidence": false, "rep": "rep.alice", "episode": "AI-16"}
+{"case_id": "C-002", "question": "What supports the chemo claim?", "scope": ["GLOVE-A"], "expected_sources": ["RPT-CHEMO-A"], "expect_no_evidence": false, "rep": "rep.alice", "episode": "AI-16"}
+{"case_id": "C-003", "question": "Can we offer it for chemo use?", "scope": ["GLOVE-B"], "expected_sources": ["GUDID-DESC-B", "rule"], "expect_no_evidence": false, "rep": "rep.alice", "episode": "AI-16"}
+{"case_id": "C-004", "question": "What is the shelf life in tropical storage?", "scope": ["GLOVE-A"], "expected_sources": [], "expect_no_evidence": true, "rep": "rep.alice", "episode": "AI-16"}
+{"case_id": "C-005", "question": "How thick is it?", "scope": ["GLOVE-A"], "expected_sources": ["table"], "expect_no_evidence": false, "rep": "rep.alice", "episode": "AI-16"}
+{"case_id": "C-006", "question": "What is the AQL?", "scope": ["GLOVE-C"], "expected_sources": ["table"], "expect_no_evidence": false, "rep": "rep.alice", "episode": "AI-16"}
+{"case_id": "C-007", "question": "Which glove is thinnest?", "scope": ["GLOVE-A", "GLOVE-C", "GLOVE-D"], "expected_sources": ["table"], "expect_no_evidence": false, "rep": "rep.alice", "episode": "AI-16"}
+{"case_id": "C-008", "question": "Is it latex-free?", "scope": ["GLOVE-D"], "expected_sources": ["table"], "expect_no_evidence": false, "rep": "rep.alice", "episode": "AI-16"}
+{"case_id": "C-009", "question": "What supports the chemo claim?", "scope": ["GLOVE-C"], "expected_sources": ["RPT-CHEMO-C"], "expect_no_evidence": false, "rep": "rep.alice", "episode": "AI-16"}
+{"case_id": "C-010", "question": "What supports the chemo claim?", "scope": ["GLOVE-D"], "expected_sources": ["RPT-CHEMO-D"], "expect_no_evidence": false, "rep": "rep.alice", "episode": "AI-16"}
+{"case_id": "C-011", "question": "Is Glove B tested for chemotherapy drugs?", "scope": ["GLOVE-B"], "expected_sources": ["GUDID-DESC-B", "rule"], "expect_no_evidence": false, "rep": "rep.alice", "episode": "AI-16"}
+{"case_id": "C-012", "question": "What tensile strength does it have?", "scope": ["GLOVE-D"], "expected_sources": ["table"], "expect_no_evidence": false, "rep": "rep.alice", "episode": "AI-16"}
+{"case_id": "C-013", "question": "Can we promise delivery in 10 days?", "scope": ["GLOVE-C"], "expected_sources": ["PLAYBOOK"], "expect_no_evidence": false, "rep": "rep.alice", "episode": "AI-16"}
+{"case_id": "C-014", "question": "Is this an exam or a surgical glove?", "scope": ["GLOVE-A"], "expected_sources": ["table"], "expect_no_evidence": false, "rep": "rep.alice", "episode": "AI-16"}
+{"case_id": "C-015", "question": "What is the carbon footprint of the box?", "scope": ["GLOVE-A"], "expected_sources": [], "expect_no_evidence": true, "rep": "rep.alice", "episode": "AI-16"}
+{"case_id": "C-016", "question": "Is there a warranty?", "scope": ["GLOVE-D"], "expected_sources": [], "expect_no_evidence": true, "rep": "rep.alice", "episode": "AI-16"}
+{"case_id": "C-017", "question": "What standard was the chemo test done to?", "scope": ["GLOVE-A"], "expected_sources": ["RPT-CHEMO-A"], "expect_no_evidence": false, "rep": "rep.alice", "episode": "AI-16"}
+{"case_id": "C-018", "question": "How long does carmustine take to break through?", "scope": ["GLOVE-A"], "expected_sources": ["RPT-CHEMO-A"], "expect_no_evidence": false, "rep": "rep.alice", "episode": "AI-16"}
+{"case_id": "C-019", "question": "Is the powder-free claim verified?", "scope": ["GLOVE-C"], "expected_sources": ["table"], "expect_no_evidence": false, "rep": "rep.alice", "episode": "AI-16"}
+{"case_id": "C-020", "question": "Explain the quality differences between these gloves", "scope": ["GLOVE-A", "GLOVE-C", "GLOVE-D"], "expected_sources": ["table"], "expect_no_evidence": false, "rep": "rep.alice", "episode": "AI-16"}
+{"case_id": "C-021", "question": "What did we agree on the Lakeside price sheet?", "scope": ["GLOVE-A"], "expected_sources": [], "expect_no_evidence": true, "rep": "rep.bob", "episode": "AI-17"}
+{"case_id": "C-022", "question": "What did we agree on the Lakeside price sheet?", "scope": ["GLOVE-A"], "expected_sources": ["PS-ACC-001"], "expect_no_evidence": false, "rep": "rep.alice", "episode": "AI-17"}
+{"case_id": "C-023", "question": "What does Harbor Point Dental Group pay for Glove L?", "scope": ["GLOVE-A"], "expected_sources": [], "expect_no_evidence": true, "rep": "rep.alice", "episode": "AI-17"}
+{"case_id": "C-024", "question": "What does Harbor Point Dental Group pay for Glove L?", "scope": ["GLOVE-A"], "expected_sources": ["PS-ACC-002"], "expect_no_evidence": false, "rep": "rep.bob", "episode": "AI-17"}
+{"case_id": "C-025", "question": "Why can't we offer Glove B for oncology?", "scope": ["GLOVE-B"], "expected_sources": ["rule"], "expect_no_evidence": false, "rep": "rep.alice", "episode": "AI-17"}
+{"case_id": "C-026", "question": "Is a marketing sheet enough evidence for chemo use?", "scope": ["GLOVE-B"], "expected_sources": ["PLAYBOOK"], "expect_no_evidence": false, "rep": "rep.alice", "episode": "AI-17"}
+{"case_id": "C-027", "question": "What is the thickness of each glove?", "scope": ["GLOVE-A", "GLOVE-C", "GLOVE-D"], "expected_sources": ["table"], "expect_no_evidence": false, "rep": "rep.alice", "episode": "AI-17"}
+{"case_id": "C-028", "question": "How does it hold up against cisplatin?", "scope": ["GLOVE-A"], "expected_sources": ["RPT-CHEMO-A"], "expect_no_evidence": false, "rep": "rep.alice", "episode": "AI-17"}
+{"case_id": "C-029", "question": "Is it sterile?", "scope": ["GLOVE-C"], "expected_sources": ["table"], "expect_no_evidence": false, "rep": "rep.alice", "episode": "AI-17"}
+{"case_id": "C-030", "question": "Can Glove B be used on the latex-free ward?", "scope": ["GLOVE-B"], "expected_sources": ["table"], "expect_no_evidence": false, "rep": "rep.alice", "episode": "AI-17"}

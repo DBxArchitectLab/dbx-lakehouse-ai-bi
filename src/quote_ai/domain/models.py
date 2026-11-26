@@ -59,8 +59,9 @@ class Eligibility(str, Enum):
 
 class FulfilmentStatus(str, Enum):
     FULL = "full"
-    PARTIAL = "partial"
-    BACKORDER = "backorder"
+    PARTIAL = "partial"                  # some now, the rest from the next receipt
+    BACKORDER = "backorder"              # nothing now; the next receipt covers it (or no date known)
+    ALTERNATIVE_DATE = "alternative_date"  # the next receipt doesn't cover it: the earliest day it can all ship (AI-15)
 
 
 # ---------------------------------------------------------------- requirements
@@ -140,6 +141,9 @@ class RequirementCheck(BaseModel):
     result: Check
     evidence: list[str] = Field(default_factory=list)  # source_ids of the business-truth rows used
     reason: str = ""
+    # AI-15: what else is on file but did not count (extracted claims, conflicting or superseded rows), as
+    # "source_id (source_type, verification)": shown on the grey chip, never used to decide
+    claims: list[str] = Field(default_factory=list)
 
 
 class EligibilityResult(BaseModel):
@@ -169,6 +173,18 @@ class FulfilmentResult(BaseModel):
     @property
     def on_time(self) -> bool:
         return not any(line.late for line in self.lines)
+
+    @property
+    def status(self) -> FulfilmentStatus:
+        """The worst line: alternative date, then backorder, then partial, then full."""
+        order = [FulfilmentStatus.ALTERNATIVE_DATE, FulfilmentStatus.BACKORDER, FulfilmentStatus.PARTIAL,
+                 FulfilmentStatus.FULL]
+        return next((s for s in order if any(l.status == s for l in self.lines)), FulfilmentStatus.FULL)
+
+    @property
+    def label(self) -> str:
+        """What the rep sees (AI-15): a late product is never shown as on time."""
+        return "on time" if self.on_time else "alternative, needs acceptance"
 
 
 # ---------------------------------------------------------------- quotes
@@ -212,6 +228,17 @@ class Quote(BaseModel):
     discount: float | None = None
     approval_needed: str | None = None   # NONE / MANAGER
     approval: Approval | None = None
+    extracted: dict | None = None        # r1 as the extraction returned it (hard and soft flags), for the rep (AI-05)
+    price_method: str | None = None      # how the price was made: v1_list_price (AI-07), price_quote (AI-18)
+    checks: dict[str, str] = Field(default_factory=dict)  # per requirement, what decided it ("not checked in v1")
+    # AI-15: the shortlist the eligibility engine and fulfilment produced for this version, one entry per candidate:
+    # {product_id, status, on_time, fulfilment, label}; written only by QuoteService.shortlist_candidates
+    candidates: list[dict] = Field(default_factory=list)
+
+    @property
+    def total(self) -> float | None:
+        totals = [l.total for l in self.lines]
+        return None if not totals or None in totals else round(sum(totals), 2)
 
 
 class QuoteEvent(BaseModel):
@@ -224,3 +251,5 @@ class QuoteEvent(BaseModel):
     actor: str
     at: datetime
     detail: dict = Field(default_factory=dict)
+    trace_id: str | None = None       # the MLflow trace of the request that made the move
+    idempotency_key: str | None = None

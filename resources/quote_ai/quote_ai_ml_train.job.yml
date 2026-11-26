@@ -1,0 +1,34 @@
+# Train, track and compare (AI-13): the rule baseline, logistic regression and gradient-boosted trees, every run in
+# the experiment /Shared/quote_ai/win; then the selection rule written in advance
+# (docs/quote_ai/decisions/adr-win-model-selection.md) and its decision in quote_ai_ml.model_selection.
+# AutoML runs from a notebook (notebooks/quote_ai/13_automl.py), not here. Not scheduled: run after
+# quote_ai_ml_features, by hand or by a reviewed change:
+#   databricks bundle run quote_ai_train -t dev
+# Verify before recording: the serverless environment spec for scikit-learn and MLflow 3, and fe.log_model's
+# arguments (artifact_path or name, pyfunc_predict_fn).
+resources:
+  jobs:
+    quote_ai_train:
+      name: quote_ai_train
+      description: 'QuoteAI win model: rule baseline vs logistic regression vs gradient boosting, tracked in MLflow'
+      max_concurrent_runs: 1
+      tags:
+        app: quote_ai
+        part: ml
+      tasks:
+        - task_key: train
+          environment_key: ml
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/ml_job.py
+            parameters: [train, --catalog, "${var.catalog}", --schemas, "quote_ai_sales=${resources.schemas.quote_ai_sales.name},quote_ai_ml=${resources.schemas.quote_ai_ml.name}", --experiment, "${resources.experiments.quote_ai_win.name}", --git-commit, "${bundle.git.commit}"]
+      environments:
+        - environment_key: ml
+          spec:
+            environment_version: '2'
+            dependencies:
+              - pydantic>=2.7
+              - pyyaml>=6
+              - databricks-feature-engineering>=0.10
+              - mlflow>=3.1
+              - scikit-learn>=1.4
+              - pandas>=2

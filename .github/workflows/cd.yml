@@ -23,6 +23,12 @@ on:
         description: "dev only: approve the schema/volume deletions listed by the previous failed run"
         type: boolean
         default: false
+      # QuoteAI (AI-25): rollback in one run. A release tag on main (ai-25, ...): prod is deployed from that tag's code
+      # and release/release.yml through the same gates (approval, deploy, rules, promote, app, smoke). Empty: main.
+      rollback_to:
+        description: "prod only: the release tag to roll back to (e.g. ai-25); empty deploys main"
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -46,8 +52,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: databricks/setup-cli@main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      # The QuoteAI app's folder: the React build and the vendored quote_ai package (git-ignored, synced by the bundle)
+      - run: python3 scripts/quote_ai/build_app.py
       - run: databricks bundle validate -t dev-shared
-      - run: databricks bundle deploy -t dev-shared ${{ inputs.approve_destructive && '--auto-approve' || '' }}
+      # QuoteAI's win model endpoint stays on the @champion version (AI-14); the register job moves it between deploys
+      - run: pip install databricks-sdk pydantic pyyaml
+      - run: echo "WIN_MODEL_VERSION=$(python3 scripts/quote_ai/win_model_smoke.py --champion-version --model dbxarchitectlab_dev.quote_ai_ml.win_model)" >> "$GITHUB_ENV"
+        env:
+          DATABRICKS_HOST: https://adb-7405609089943919.19.azuredatabricks.net   # the dev-shared workspace (databricks.yml)
+      - run: databricks bundle deploy -t dev-shared --var quote_ai_win_model_version=$WIN_MODEL_VERSION ${{ inputs.approve_destructive && '--auto-approve' || '' }}
+      - name: QuoteAI win model smoke test (one what-if query must return)
+        run: python3 scripts/quote_ai/win_model_smoke.py --query --endpoint quote_ai_win_model_dev_shared
+        env:
+          DATABRICKS_HOST: https://adb-7405609089943919.19.azuredatabricks.net
+      # AI-25: the release rehearsal in dev-shared, the same steps as prod after the deploy. Aliases in dev-shared are
+      # moved by the register job and the experiments (AI-14, AI-23), so no promotion here: the manifest is set from
+      # what dev-shared runs and was evaluated on.
+      - run: databricks bundle run quote_ai_rules_setup -t dev-shared
+      - run: databricks bundle run quote_ai_app -t dev-shared
+      - run: databricks bundle run quote_ai_smoke_test -t dev-shared
       - name: Copy src/notebooks/shared to /Workspace/Shared
         run: bash scripts/deploy-shared-notebooks.sh dev-shared
 
@@ -68,9 +94,44 @@ jobs:
         run: |
           echo "::error::prod deploys only from main; '${{ github.ref_name }}' was selected."
           exit 1
+      # AI-25: a rollback deploys a previous release tag (its code and its release/release.yml); otherwise main.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.rollback_to || github.sha }}
+      - name: rollback only to a release tag on main that has a release manifest
+        if: github.event_name == 'workflow_dispatch' && inputs.rollback_to != ''
+        run: |
+          git merge-base --is-ancestor HEAD origin/main || { echo "::error::${{ inputs.rollback_to }} is not on main"; exit 1; }
+          test -f release/release.yml || { echo "::error::${{ inputs.rollback_to }} has no release/release.yml"; exit 1; }
+          echo "::notice::Rolling prod back to ${{ inputs.rollback_to }} (docs/quote_ai/runbooks/release-and-rollback.md)"
       - uses: databricks/setup-cli@main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      # The QuoteAI app's folder: the React build (npm: static files the FastAPI back end serves) and the vendored
+      # quote_ai package (git-ignored, synced by the bundle)
+      - run: python3 scripts/quote_ai/build_app.py
       - run: databricks bundle validate -t prod
-      - run: databricks bundle deploy -t prod
+      - run: pip install databricks-sdk pydantic pyyaml "mlflow>=3.1"
+      # AI-25: QuoteAI's release manifest. Every model and prompt version it names must exist in the prod catalog
+      # before anything is deployed; the win model endpoint serves the manifest's version (promote, don't rebuild).
+      - name: QuoteAI release manifest - every version exists in prod
+        run: PYTHONPATH=src python3 -m quote_ai.ops.promote --catalog dbxarchitectlab_prod --check
+        env:
+          DATABRICKS_HOST: https://adb-7405604784566671.11.azuredatabricks.net   # the prod workspace (databricks.yml)
+      - run: echo "WIN_MODEL_VERSION=$(PYTHONPATH=src python3 -m quote_ai.ops.promote --get models.win_model)" >> "$GITHUB_ENV"
+      - run: databricks bundle deploy -t prod --var quote_ai_win_model_version=$WIN_MODEL_VERSION
+      # AI-25: the QuoteAI release, in order: rules from this commit, aliases to the manifest, the app's new version,
+      # then the smoke test through the app's API. Prod aliases change only here.
+      - run: databricks bundle run quote_ai_rules_setup -t prod
+      - run: databricks bundle run quote_ai_promote -t prod
+      - run: databricks bundle run quote_ai_app -t prod
+      - run: databricks bundle run quote_ai_smoke_test -t prod
+      - name: QuoteAI release failed - roll back
+        if: failure()
+        run: |
+          echo "::error::The QuoteAI release failed. Follow docs/quote_ai/runbooks/release-and-rollback.md: Run workflow -> Deploy -> prod, rollback_to = the previous release tag."
+          exit 1
       - name: Copy src/notebooks/shared to /Workspace/Shared
         run: bash scripts/deploy-shared-notebooks.sh prod

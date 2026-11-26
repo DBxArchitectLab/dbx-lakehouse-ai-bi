@@ -1,0 +1,8 @@
+# The win model's MLflow experiment (AI-13): one run per candidate (rule, logreg, automl, gbt), each with the training
+# set table version as its dataset input and the git commit. In a personal dev copy, development mode prefixes the
+# name; dev-shared and prod use /Shared/quote_ai/win (they are in different workspaces).
+# Verify before recording: that the /Shared/quote_ai folder exists (or is created) before the first deploy.
+resources:
+  experiments:
+    quote_ai_win:
+      name: /Shared/quote_ai/win

@@ -1,0 +1,29 @@
+# The QuoteAI release manifest (AI-25): what QuoteAI 1.0 is, in one file. A release is a set of versions; you can only
+# reproduce or roll back what you can name. The code is the git commit this file is tagged with (ai-NN); everything
+# else the code reads by alias is pinned here, and only the quote_ai_promote job, run by cd.yml after the gates, moves
+# the aliases to these versions. Nothing is copied or rebuilt: only pointers move.
+#
+#   quote_ai             the release (the GitHub release "QuoteAI 1.0.0")
+#   evaluation_package   evaluation/quote_ai/v1/VERSION: the package whose gate approved this release
+#                        (tests/quote_ai/test_release_manifest.py fails the pull request when they differ)
+#   models               Unity Catalog models in <catalog>.quote_ai_ml: version -> @champion
+#   prompts              Prompt Registry prompts in <catalog>.quote_ai_ai, by use: version -> @champion
+#                        (extraction = extract_requirements, comparison = compare_explain: quote_ai.ops.promote.PROMPTS)
+#   index                the AI Search index definition: its embedding model service (quote_ai_embed_<target>)
+#   rules                the rules ship as code (src/quote_ai/rules, config/quote_ai/policy.yml) and are published as
+#                        Unity Catalog functions by the quote_ai_rules_setup job from this same commit
+#
+# Set the versions at release time to the ones the full evaluation ran on in dev-shared; every one must exist in the
+# target catalog (python -m quote_ai.ops.promote --check). Rollback: restore this file from the previous release tag
+# (docs/quote_ai/runbooks/release-and-rollback.md).
+quote_ai: 1.0.0
+evaluation_package: 1.3.0
+models:
+  win_model: 7
+prompts:
+  extraction: 5
+  comparison: 4
+index:
+  sku_search_index: {embedding_endpoint: quote_ai_embed, version: 2}
+rules:
+  policy: config/quote_ai/policy.yml

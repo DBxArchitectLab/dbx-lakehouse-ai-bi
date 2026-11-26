@@ -1,0 +1,77 @@
+# Search and the eligibility engine (AI-15), nightly after the evidence: the wider range (demo data), the search
+# document refreshed by MERGE, the AI Search index synced (TRIGGERED), the rules as Unity Catalog functions, and the
+# app's grants on them. Run after quote_ai_product_model, quote_ai_attributes and quote_ai_mock_documents.
+#   databricks bundle run quote_ai_search_index -t dev
+# The AI Search endpoint and index are created by the index task if they don't exist (quote_ai_search_index.notes.md).
+# Verify before recording: the {{...}} and ${workspace.file_path} references, the databricks-vectorsearch package on
+# serverless, and the app service principal reference (as in quote_ai_app_grants.job.yml).
+resources:
+  volumes:
+    quote_ai_packages:
+      catalog_name: ${var.catalog}
+      schema_name: ${resources.schemas.quote_ai_ai.name}
+      name: quote_ai_packages
+      volume_type: MANAGED
+      comment: The quote_ai wheel the Unity Catalog Python functions import (check_eligibility, check_fulfilment)
+
+  jobs:
+    quote_ai_search_index:
+      name: quote_ai_search_index
+      description: 'QuoteAI: refresh the SKU search document, sync the AI Search index, publish the rules as UC functions'
+      max_concurrent_runs: 1
+      tags:
+        app: quote_ai
+        part: search
+      schedule:
+        quartz_cron_expression: "0 30 3 * * ?"     # nightly, after the evidence pipelines
+        timezone_id: UTC
+      tasks:
+        - task_key: setup
+          environment_key: default
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/search_job.py
+            parameters: [setup, --catalog, "${var.catalog}", --schemas, &schemas "quote_ai_product=${resources.schemas.quote_ai_product.name},quote_ai_sales=${resources.schemas.quote_ai_sales.name},quote_ai_ai=${resources.schemas.quote_ai_ai.name},quote_ai_gudid_gold=${resources.schemas.quote_ai_gudid_gold.name}"]
+        - task_key: seed
+          depends_on: [{ task_key: setup }]
+          environment_key: default
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/search_job.py
+            parameters: [seed, --catalog, "${var.catalog}", --schemas, *schemas]
+        - task_key: search_doc
+          depends_on: [{ task_key: seed }]
+          environment_key: default
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/search_job.py
+            parameters: [doc, --catalog, "${var.catalog}", --schemas, *schemas]
+        - task_key: sync_index
+          depends_on: [{ task_key: search_doc }]
+          environment_key: search
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/search_job.py
+            parameters: [index, --what, sku, --endpoint, quote_ai_search, --embedding-endpoint, "quote_ai_embed_${var.quote_ai_target}", --catalog, "${var.catalog}", --schemas, *schemas]
+        - task_key: functions
+          depends_on: [{ task_key: setup }]
+          environment_key: default
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/search_job.py
+            parameters: [functions, --source-root, "${workspace.file_path}", --packages, "/Volumes/${var.catalog}/${resources.schemas.quote_ai_ai.name}/${resources.volumes.quote_ai_packages.name}", --catalog, "${var.catalog}", --schemas, *schemas]
+        - task_key: grants
+          depends_on: [{ task_key: sync_index }, { task_key: functions }]
+          environment_key: default
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/search_job.py
+            parameters: [grants, --app-sp, "${resources.apps.quote_ai_app.service_principal_client_id}", --catalog, "${var.catalog}", --schemas, *schemas]
+      environments:
+        - environment_key: default
+          spec:
+            environment_version: '2'
+            dependencies:
+              - pydantic>=2.7
+              - pyyaml>=6
+        - environment_key: search
+          spec:
+            environment_version: '2'
+            dependencies:
+              - pydantic>=2.7
+              - pyyaml>=6
+              - databricks-vectorsearch

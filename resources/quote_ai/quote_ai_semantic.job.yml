@@ -1,0 +1,38 @@
+# The semantic layer (AI-10): the sales facts, their synthetic history, and the metric views that define every sales
+# measure once (quote_ai_sales.quote_metrics, order_metrics). Run after quote_ai_product_model (it reads dbxlab_sku and
+# the customer view). Change a definition in src/quote_ai/semantic/*_metrics.sql, deploy, run: every consumer follows.
+#   databricks bundle run quote_ai_semantic -t dev
+resources:
+  jobs:
+    quote_ai_semantic:
+      name: quote_ai_semantic
+      description: 'QuoteAI semantic layer: sales facts (demo data) and the metric views quote_metrics and order_metrics'
+      max_concurrent_runs: 1
+      tags:
+        app: quote_ai
+        part: analytics
+      tasks:
+        - task_key: setup
+          environment_key: default
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/semantic_job.py
+            parameters: [setup, --catalog, "${var.catalog}", --schemas, &schemas "quote_ai_sales=${resources.schemas.quote_ai_sales.name},quote_ai_product=${resources.schemas.quote_ai_product.name},quote_ai_gudid_gold=${resources.schemas.quote_ai_gudid_gold.name}"]
+        - task_key: seed
+          depends_on: [{ task_key: setup }]
+          environment_key: default
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/semantic_job.py
+            parameters: [seed, --catalog, "${var.catalog}", --schemas, *schemas]
+        - task_key: metrics
+          depends_on: [{ task_key: seed }]
+          environment_key: default
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/semantic_job.py
+            parameters: [metrics, --catalog, "${var.catalog}", --schemas, *schemas]
+      environments:
+        - environment_key: default
+          spec:
+            environment_version: '2'
+            dependencies:
+              - pydantic>=2.7
+              - pyyaml>=6

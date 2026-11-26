@@ -12,9 +12,31 @@
 # Still to confirm in the first workspace run: AUTO CDC with null key parts (device_sizes_raw) and serverless egress.
 version: 1
 
+classification:
+  version: glove-category-v1
+  rules:
+    - rule_id: fda_lza
+      field: product_code
+      value: LZA
+      verified: true
+      reviewed_by: FDA classification API cross-check 2026-11-18
+      evidence_url: https://api.fda.gov/device/classification.json?search=product_code:LZA
+    - rule_id: fda_lzc
+      field: product_code
+      value: LZC
+      verified: true
+      reviewed_by: FDA classification API cross-check 2026-11-18
+      evidence_url: https://api.fda.gov/device/classification.json?search=product_code:LZC
+    - rule_id: fda_lyy
+      field: product_code
+      value: LYY
+      verified: true
+      reviewed_by: FDA classification API cross-check 2026-11-18
+      evidence_url: https://api.fda.gov/device/classification.json?search=product_code:LYY
+
 sources:
   # The monthly full release, pipe-delimited ("AccessGUDID_Delimited_Full_Release_YYYYMMDD.zip", about 400 MB).
-  # Loaded once (or again to rebuild): job quote_ai_ingest_once, with the release date as a parameter.
+  # Loaded once (or again to rebuild): blank release_date selects the latest release within 60 days.
   - name: gudid_full_release
     type: file
     description: AccessGUDID delimited full release, every device as published
@@ -25,11 +47,12 @@ sources:
     download:
       url: "https://accessgudid.nlm.nih.gov/release_files/download/AccessGUDID_Delimited_Full_Release_{date:%Y%m%d}.zip"
       kind: full
+      lookback_days: 60
     format: csv
     options: { sep: "|", header: "true", quote: "\u0000" }
     tables:
       - target: quote_ai_gudid_bronze.device_raw
-        pattern: "device*.txt"
+        pattern: "device.txt"
         keys: [primary_di]
         comment: One row per device identifier, the current published version
         expectations:

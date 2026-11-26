@@ -1,0 +1,31 @@
+# Register, alias, promote (AI-14): the run the training job selected becomes a new version of
+# quote_ai_ml.win_model with @challenger; @champion moves to it only if it beats the champion on the latest month of
+# decided quotes. The serving endpoint follows @champion; the decision goes to quote_ai_ml.model_promotion. The app's
+# service principal gets EXECUTE on the model. Promotion is this reviewed job, never a manual click in prod.
+#   databricks bundle run quote_ai_ml_register -t dev
+resources:
+  jobs:
+    quote_ai_ml_register:
+      name: quote_ai_ml_register
+      description: 'QuoteAI win model: register the selected run, @challenger, promote to @champion only if it wins'
+      max_concurrent_runs: 1
+      tags:
+        app: quote_ai
+        part: ml
+      tasks:
+        - task_key: register
+          environment_key: ml
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/ml_job.py
+            parameters: [register, --catalog, "${var.catalog}", --schemas, "quote_ai_sales=${resources.schemas.quote_ai_sales.name},quote_ai_ml=${resources.schemas.quote_ai_ml.name}", --endpoint, "${resources.model_serving_endpoints.quote_ai_win_model.name}", --app-sp, "${resources.apps.quote_ai_app.service_principal_client_id}"]
+      environments:
+        - environment_key: ml
+          spec:
+            environment_version: '2'
+            dependencies:
+              - pydantic>=2.7
+              - pyyaml>=6
+              - databricks-feature-engineering>=0.10
+              - mlflow>=3.1
+              - scikit-learn>=1.4
+              - pandas>=2

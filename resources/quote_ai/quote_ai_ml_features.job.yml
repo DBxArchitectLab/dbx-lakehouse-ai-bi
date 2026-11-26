@@ -1,0 +1,52 @@
+# Win prediction, the inputs (AI-12): the synthetic quote history (demo data, a planted signal), the label, the three
+# feature tables with timestamp keys, and the point-in-time training set with its time split. Nightly, small,
+# serverless, run as sp-dbx-lakehouse in dev-shared and prod; data scientists read quote_ai_ml.
+# Run after quote_ai_semantic (it reads quote_fact and order_line) and quote_ai_product_model:
+#   databricks bundle run quote_ai_ml_features -t dev
+# seed writes only into empty tables (so AI-14's injected drift survives); to regenerate, run ml_job.py seed --force.
+# Verify before recording: the databricks-feature-engineering version on serverless environment 2, and
+# point-in-time lookups (timestamp_lookup_key) on serverless job compute.
+resources:
+  jobs:
+    quote_ai_ml_features:
+      name: quote_ai_ml_features
+      description: 'QuoteAI win prediction: label, feature tables (point in time) and the training set (demo data)'
+      max_concurrent_runs: 1
+      tags:
+        app: quote_ai
+        part: ml
+      schedule:
+        quartz_cron_expression: "0 0 2 * * ?"     # nightly, 02:00 UTC
+        timezone_id: UTC
+      tasks:
+        - task_key: setup
+          environment_key: ml
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/ml_job.py
+            parameters: [setup, --catalog, "${var.catalog}", --schemas, &schemas "quote_ai_sales=${resources.schemas.quote_ai_sales.name},quote_ai_product=${resources.schemas.quote_ai_product.name},quote_ai_ml=${resources.schemas.quote_ai_ml.name},quote_ai_monitoring=${resources.schemas.quote_ai_monitoring.name}"]
+        - task_key: seed
+          depends_on: [{ task_key: setup }]
+          environment_key: ml
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/ml_job.py
+            parameters: [seed, --catalog, "${var.catalog}", --schemas, *schemas]
+        - task_key: features
+          depends_on: [{ task_key: seed }]
+          environment_key: ml
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/ml_job.py
+            parameters: [features, --catalog, "${var.catalog}", --schemas, *schemas]
+        - task_key: training_set
+          depends_on: [{ task_key: features }]
+          environment_key: ml
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/ml_job.py
+            parameters: [training-set, --catalog, "${var.catalog}", --schemas, *schemas]
+      environments:
+        - environment_key: ml
+          spec:
+            environment_version: '2'
+            dependencies:
+              - pydantic>=2.7
+              - pyyaml>=6
+              - databricks-feature-engineering>=0.10

@@ -1,0 +1,26 @@
+# GUDID silver and gold (AI-03): a Lakeflow Spark Declarative Pipeline from AI-02's bronze. It only reads bronze
+# (streaming: only new rows are processed), keeps every device version (SCD type 2) and publishes the current device,
+# its package levels and child tables to quote_ai_gudid_silver, and device_distribution to quote_ai_gudid_gold.
+# Triggered, not continuous: the quote_ai_product_model job runs it after an ingestion run.
+# Verify before recording: serverless pipeline keys, publishing to two schemas from one pipeline.
+resources:
+  pipelines:
+    quote_ai_gudid:
+      name: quote_ai_gudid
+      catalog: ${var.catalog}
+      schema: ${resources.schemas.quote_ai_gudid_silver.name}
+      serverless: true
+      continuous: false
+      libraries:
+        - file: { path: ../../src/quote_ai/pipelines/quote_ai_gudid_silver.py }
+        - file: { path: ../../src/quote_ai/pipelines/quote_ai_gudid_gold.py }
+      environment:
+        dependencies:
+          - pydantic>=2.7
+          - pyyaml>=6
+      configuration:
+        quote_ai.src_path: ${workspace.file_path}/src
+        quote_ai.catalog: ${var.catalog}
+        quote_ai.schemas: quote_ai_gudid_bronze=${resources.schemas.quote_ai_gudid_bronze.name},quote_ai_gudid_silver=${resources.schemas.quote_ai_gudid_silver.name},quote_ai_gudid_gold=${resources.schemas.quote_ai_gudid_gold.name}
+      tags:
+        app: quote_ai

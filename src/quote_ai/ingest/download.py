@@ -72,14 +72,14 @@ def land_release(http: Http, source: Source, d: date, root: Path, log: LogWriter
                  job_run_id: str | None = None) -> list[FileRecord] | None:
     """Download and unzip one release into the landing zone. None if there is no release that day (404)."""
     url = source.download.url_for(d)
+    resp = http.get(url, stream=True)
+    if resp is None:
+        return None
     folder = landing_dir(root, source, d)
     folder.mkdir(parents=True, exist_ok=True)
     zip_path = folder / url.rsplit("/", 1)[-1]
     part = zip_path.with_name(zip_path.name + ".part")
 
-    resp = http.get(url, stream=True)
-    if resp is None:
-        return None
     with open(part, "wb") as f:
         for chunk in resp.iter_content(CHUNK):
             f.write(chunk)
@@ -140,8 +140,10 @@ def record_dropped_files(source: Source, root: Path, log: LogWriter, job_run_id:
 def land_source(http: Http, source: Source, root: Path, log: LogWriter, today: date,
                 release_date: date | None = None, job_run_id: str | None = None,
                 generators: dict[str, Callable] | None = None) -> list[FileRecord]:
-    """Land what a file source needs this run: the given full release, the missing daily releases, or the files its
-    generator writes. Returns the records of files landed."""
+    """Land an explicit or latest available full release, missing daily releases, or generated files.
+
+    Full-release discovery searches backward through the configured lookback window.
+    """
     out: list[FileRecord] = []
     if source.generator:
         gen = (generators or {}).get(source.generator)
@@ -157,9 +159,20 @@ def land_source(http: Http, source: Source, root: Path, log: LogWriter, today: d
     if source.download is None:
         return record_dropped_files(source, root, log, job_run_id)
     if source.download.kind == "full":
-        if release_date is None:
-            raise ValueError(f"{source.name}: a full release needs a release date (the job's release_date parameter)")
-        return land_release(http, source, release_date, root, log, job_run_id) or []
+        if release_date is not None:
+            records = land_release(http, source, release_date, root, log, job_run_id)
+            if records is None:
+                raise ValueError(f"{source.name}: no full release published for release_date={release_date}")
+            return records
+        for offset in range(source.download.lookback_days + 1):
+            candidate = today - timedelta(days=offset)
+            records = land_release(http, source, candidate, root, log, job_run_id)
+            if records is not None:
+                return records
+        raise ValueError(
+            f"{source.name}: no full release found in the {source.download.lookback_days}-day lookback "
+            "window; set the job's release_date parameter to a published release date (YYYY-MM-DD)"
+        )
     for d in days_to_fetch(source, log, today):
         out += land_release(http, source, d, root, log, job_run_id) or []
     return out

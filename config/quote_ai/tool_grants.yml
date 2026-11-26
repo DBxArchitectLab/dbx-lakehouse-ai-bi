@@ -1,0 +1,17 @@
+# Per-tool grants (AI-24): which agent tool (a Unity Catalog function in quote_ai_ai) each specialist may EXECUTE.
+# Least privilege, reviewed like code: src/quote_ai/jobs/security_job.py turns it into GRANT EXECUTE statements, and
+# the data authorization suite (sec-05) fails when a specialist can run a tool outside its job: a grant here that its
+# code does not need (agents/specialists/*.py TOOLS), or price_quote anywhere but pricing.
+# Specialists run as the agent app's service principal today; each gets its own principal (a group of one) when its
+# calls are split by identity. Until then the agent's identity holds the union, and the orchestrator gives each
+# specialist only its own tools (Toolbox names).
+specialists:
+  catalog: [search_candidates, check_eligibility, get_evidence, get_device, check_fulfilment, gudid_live_lookup]
+  knowledge: [get_evidence]                # knowledge_search is the AI Search index, not a function
+  analyst: []                              # Genie, through the space's own permission
+  pricing: [price_quote, win_probability]
+
+# Tools only one specialist may hold: anyone else with them is a finding.
+exclusive:
+  price_quote: pricing
+  win_probability: pricing

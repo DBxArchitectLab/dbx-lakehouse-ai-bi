@@ -1,0 +1,40 @@
+# Nightly scores and the monitor (AI-14): every open quote scored by quote_ai_ml.win_model@champion (never a run ID
+# or a version) into quote_ai_ml.open_quote_scores, one non-null row per open quote per run; then data and model
+# quality monitoring refreshes its inference profile (output in quote_ai_monitoring).
+#   databricks bundle run quote_ai_ml_score -t dev
+# The drift demo: notebooks/quote_ai/14_drift_demo.py (ml_job.py drift), then quote_ai_ml_features and this job again.
+resources:
+  jobs:
+    quote_ai_ml_score:
+      name: quote_ai_ml_score
+      description: 'QuoteAI win model: nightly win chance of every open quote (a simulation on demo data) and its monitor'
+      max_concurrent_runs: 1
+      tags:
+        app: quote_ai
+        part: ml
+      schedule:
+        quartz_cron_expression: "0 0 4 * * ?"     # nightly, 04:00 UTC, after quote_ai_ml_features
+        timezone_id: UTC
+      tasks:
+        - task_key: score
+          environment_key: ml
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/ml_job.py
+            parameters: [score, --catalog, "${var.catalog}", --schemas, &schemas "quote_ai_sales=${resources.schemas.quote_ai_sales.name},quote_ai_ml=${resources.schemas.quote_ai_ml.name},quote_ai_monitoring=${resources.schemas.quote_ai_monitoring.name}"]
+        - task_key: monitor
+          depends_on: [{ task_key: score }]
+          environment_key: ml
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/ml_job.py
+            parameters: [monitor, --catalog, "${var.catalog}", --schemas, *schemas]
+      environments:
+        - environment_key: ml
+          spec:
+            environment_version: '2'
+            dependencies:
+              - pydantic>=2.7
+              - pyyaml>=6
+              - databricks-feature-engineering>=0.10
+              - mlflow>=3.1
+              - scikit-learn>=1.4
+              - pandas>=2

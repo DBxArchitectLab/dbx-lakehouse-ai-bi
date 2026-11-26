@@ -1,0 +1,65 @@
+# The evaluation gate (AI-22): the whole package (evaluation/quote_ai/v1, sixteen suites) against the release rule
+# (v1/thresholds.yml), with the extraction model service and the production prompt, the comparison judge through
+# Unity Gateway, Genie and the win model's selection record. Results go to quote_ai_eval.eval_results with the git SHA
+# and the package version; the task exits 1 below a threshold, and that fails the pull request's eval check.
+#   databricks bundle run -t dev quote_ai_eval
+#   databricks bundle run -t dev quote_ai_eval --params suites=data_authorization,model_access     (AI-24)
+# Runs as sp-dbx-lakehouse in dev-shared and prod (the target's run_as). The judge's endpoint, QUOTE_AI_JUDGE_ENDPOINT,
+# is the chat model service, with its own rate limit; a run is ~100-200 model calls (recorded per run).
+# Verify before recording: job parameters as {{job.parameters.suites}} in a spark_python_task, and the environment
+# variable of a serverless task (spark_env_vars is not available on serverless: the runner takes --judge-endpoint).
+resources:
+  jobs:
+    quote_ai_eval:
+      name: quote_ai_eval
+      description: 'QuoteAI evaluation gate: every suite against v1/thresholds.yml; exits 1 below a threshold'
+      max_concurrent_runs: 1
+      tags:
+        app: quote_ai
+        part: evaluation
+      parameters:
+        - name: suites
+          default: all
+        - name: git_sha
+          default: ""
+      tasks:
+        - task_key: run_eval
+          environment_key: default
+          spark_python_task:
+            python_file: ../../evaluation/quote_ai/run_eval.py
+            parameters:
+              - --suites
+              - "{{job.parameters.suites}}"
+              - --catalog
+              - "${var.catalog}"
+              - --target
+              - "${bundle.target}"
+              - --schema
+              - "${resources.schemas.quote_ai_ai.name}"
+              - --schemas
+              - "quote_ai_ai=${resources.schemas.quote_ai_ai.name},quote_ai_ml=${resources.schemas.quote_ai_ml.name},quote_ai_sales=${resources.schemas.quote_ai_sales.name},quote_ai_product=${resources.schemas.quote_ai_product.name},quote_ai_eval=${resources.schemas.quote_ai_eval.name}"
+              - --judge
+              - --judge-endpoint
+              - "quote_ai_chat_${var.quote_ai_target}"
+              - --experiment
+              - "${resources.experiments.quote_ai_eval.name}"
+              - --space-id
+              - "${var.quote_ai_genie_space_id}"
+              - --warehouse-id
+              - "${var.quote_ai_warehouse_id}"
+              - --git-sha
+              - "{{job.parameters.git_sha}}"
+              - --results-table
+              - "${var.catalog}.${resources.schemas.quote_ai_eval.name}.eval_results"
+      environments:
+        - environment_key: default
+          spec:
+            environment_version: '2'
+            dependencies:
+              - pydantic>=2.7
+              - pyyaml>=6
+              - mlflow>=3.1
+              - databricks-sdk
+              - openai
+              - fastapi
+              - httpx

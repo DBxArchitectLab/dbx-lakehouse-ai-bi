@@ -97,9 +97,12 @@ def job(cfg: IngestConfig, schedule: str) -> dict:
                                       "{{tasks.files.result_state}}"], cfg, ["files"], run_if="ALL_DONE"))
         last = "record"
     for s in apis:
+        if cfg.classification and s.name == cfg.classification.api_source:
+            tasks.append(_task("classify_gloves", ["classify"], cfg, [last]))
+            last = "classify_gloves"
         tasks.append(_task(f"api_{s.name}", ["api", "--source", s.name], cfg, [last]))
         last = f"api_{s.name}"
-    tasks.append(_task("checks", ["checks"], cfg, [last]))
+    tasks.append(_task("checks", ["checks", "--schedule", schedule], cfg, [last]))
     sources = ", ".join(s.name for s in [*files, *apis])
     j: dict = {"name": f"quote_ai_ingest_{schedule}",
                "description": f"QuoteAI ingestion, {schedule}: {sources}",
@@ -109,9 +112,11 @@ def job(cfg: IngestConfig, schedule: str) -> dict:
         j["parameters"] = [{"name": "release_date", "default": ""}]
     if schedule in CRON:
         j["schedule"] = {"quartz_cron_expression": CRON[schedule], "timezone_id": "UTC"}
+        if schedule == "daily":
+            j["schedule"]["pause_status"] = "UNPAUSED"
     j["tasks"] = tasks
     j["environments"] = [{"environment_key": "default",
-                          "spec": {"environment_version": "2", "dependencies": DEPENDENCIES}}]
+                          "spec": {"environment_version": "2", "dependencies": ["../../dist/*.whl", *DEPENDENCIES]}}]
     return j
 
 

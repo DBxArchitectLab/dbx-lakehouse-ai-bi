@@ -1,0 +1,31 @@
+# The evaluation cases in the eval schema (AI-17): search, eligibility and comparison, loaded from the versioned files
+# in evaluation/quote_ai/v1. Run after a pull request changes a suite:
+#   databricks bundle run quote_ai_eval_tables -t dev
+# The runs themselves are `python evaluation/quote_ai/run_eval.py --suite <suite> --variant <v> --mlflow`, logged to
+# the experiment below (one run per variant). Evaluation runs as sp-dbx-lakehouse in dev-shared.
+resources:
+  experiments:
+    quote_ai_eval:
+      name: /Shared/quote_ai/eval
+
+  jobs:
+    quote_ai_eval_tables:
+      name: quote_ai_eval_tables
+      description: 'QuoteAI: load the search, eligibility and comparison cases into the eval schema'
+      max_concurrent_runs: 1
+      tags:
+        app: quote_ai
+        part: evaluation
+      tasks:
+        - task_key: load
+          environment_key: default
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/eval_job.py
+            parameters: [load, --version, v1, --catalog, "${var.catalog}", --schemas, "quote_ai_eval=${resources.schemas.quote_ai_eval.name}"]
+      environments:
+        - environment_key: default
+          spec:
+            environment_version: '2'
+            dependencies:
+              - pydantic>=2.7
+              - pyyaml>=6

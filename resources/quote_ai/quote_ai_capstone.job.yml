@@ -1,0 +1,55 @@
+# The capstone scorecard (AI-27): every success criterion of the plan with its target, result and pass, written to
+# quote_ai_eval.capstone. Read-only: the pure-code suites run in the job, the workspace suites are read from the
+# latest gate run (eval_results), freshness and cost from quote_ai_monitoring, the deployed app's /api/health; the
+# Lakeside flow runs in-process on the demo data, never as a quote in this target.
+#   databricks bundle run quote_ai_capstone -t prod --params baseline_minutes=95,app_minutes=6
+# Runs as sp-dbx-lakehouse (the target's run_as). Exit 1 when a criterion fails.
+# Verify before recording: job parameters as {{job.parameters.x}} (as quote_ai_eval.job.yml).
+resources:
+  jobs:
+    quote_ai_capstone:
+      name: quote_ai_capstone
+      description: 'QuoteAI capstone: every success criterion on one scorecard, read-only (AI-27)'
+      max_concurrent_runs: 1
+      tags:
+        app: quote_ai
+        part: evaluation
+      parameters:
+        - name: baseline_minutes
+          default: "0"
+        - name: app_minutes
+          default: "0"
+      tasks:
+        - task_key: scorecard
+          environment_key: default
+          spark_python_task:
+            python_file: ../../evaluation/quote_ai/capstone/run_capstone.py
+            parameters:
+              - --catalog
+              - "${var.catalog}"
+              - --schemas
+              - "quote_ai_monitoring=${resources.schemas.quote_ai_monitoring.name},quote_ai_ops=${resources.schemas.quote_ai_ops.name},quote_ai_eval=${resources.schemas.quote_ai_eval.name}"
+              - --warehouse-id
+              - "${var.quote_ai_warehouse_id}"
+              - --results-table
+              - "${var.catalog}.${resources.schemas.quote_ai_eval.name}.eval_results"
+              - --table
+              - "${var.catalog}.${resources.schemas.quote_ai_eval.name}.capstone"
+              - --app
+              - "${resources.apps.quote_ai_app.name}"
+              - --baseline-minutes
+              - "{{job.parameters.baseline_minutes}}"
+              - --app-minutes
+              - "{{job.parameters.app_minutes}}"
+      environments:
+        - environment_key: default
+          spec:
+            environment_version: '2'
+            dependencies:
+              - pydantic>=2.7
+              - pyyaml>=6
+              - databricks-sdk
+              - databricks-sql-connector
+              - fastapi
+              - httpx
+              - requests>=2.31

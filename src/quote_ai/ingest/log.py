@@ -88,6 +88,7 @@ class LogWriter(Protocol):
     def get(self, run_id: str) -> RunRecord | None: ...
     def add_files(self, recs: list[FileRecord]) -> int: ...
     def files(self, source: str, job_run_id: str | None = None) -> list[FileRecord]: ...
+    def pending_load_ids(self, source: str) -> list[str]: ...
     def last_success(self, source: str) -> RunRecord | None: ...
 
 
@@ -116,6 +117,15 @@ class InMemoryLog:
 
     def files(self, source: str, job_run_id: str | None = None) -> list[FileRecord]:
         return [f for f in self.file_rows if f.source == source and (job_run_id is None or f.job_run_id == job_run_id)]
+
+    def pending_load_ids(self, source: str) -> list[str]:
+        """Return manifested loads not yet covered by a successful source run."""
+        completed = {
+            load_id for run in self.runs.values()
+            if run.source == source and run.status in ("succeeded", "partial")
+            for load_id in run.load_ids
+        }
+        return sorted({record.load_id for record in self.files(source)} - completed)
 
     def last_success(self, source: str) -> RunRecord | None:
         done = [r for r in self.runs.values() if r.source == source and r.status in ("succeeded", "partial")]
@@ -149,10 +159,15 @@ def logged_run(log: LogWriter, rec: RunRecord, clock=utcnow) -> Iterator[RunReco
 
 
 def config_rows(cfg: IngestConfig, config_hash: str, git_commit: str | None) -> list[dict]:
-    """quote_ai_ops.ingestion_config rows: one per source and table, with the full source entry as JSON."""
+    """Record each source and its applicable classification policy for reproducible audit."""
     out = []
     for s in cfg.sources:
-        entry = json.dumps(s.model_dump(mode="json", exclude_none=True), sort_keys=True)
+        source_entry = s.model_dump(mode="json", exclude_none=True)
+        if cfg.classification and s.name in (
+            cfg.classification.full_source, cfg.classification.daily_source, cfg.classification.api_source
+        ):
+            source_entry["classification"] = cfg.classification.model_dump(mode="json")
+        entry = json.dumps(source_entry, sort_keys=True)
         for t in s.tables:
             out.append({"source": s.name, "target_table": t.target, "type": s.type, "schedule": s.schedule,
                         "enabled": s.enabled, "keys": list(t.keys), "entry_json": entry,
@@ -188,11 +203,13 @@ CREATE OR REPLACE VIEW {ops}.v_ingestion_audit
 COMMENT 'From one load ID: the run, who ran it from which code and config, and the files it landed.' AS
 SELECT l.run_id, l.source, l.status, l.started_at, l.ended_at, l.error, l.rows_by_table, l.watermark_from,
        l.watermark_to, l.job_id, l.job_run_id, l.run_as, l.bundle_target, l.git_commit, l.config_hash,
-       x.load_id, f.path, f.source_url, f.release_date, f.size_bytes, f.md5, f.sha256, f.downloaded_at,
+    l.load_id, f.path, f.source_url, f.release_date, f.size_bytes, f.md5, f.sha256, f.downloaded_at,
        c.entry_json AS config_entry
-FROM {ops}.ingestion_log l
-LATERAL VIEW OUTER explode(l.load_ids) x AS load_id
-LEFT JOIN {ops}.ingestion_file f ON f.load_id = x.load_id AND f.source = l.source
+FROM (
+  SELECT logs.*, explode_outer(logs.load_ids) AS load_id
+  FROM {ops}.ingestion_log logs
+) l
+LEFT JOIN {ops}.ingestion_file f ON f.load_id = l.load_id AND f.source = l.source
 LEFT JOIN (SELECT DISTINCT source, config_hash, entry_json FROM {ops}.ingestion_config) c
   ON c.source = l.source AND c.config_hash = l.config_hash""",
 }

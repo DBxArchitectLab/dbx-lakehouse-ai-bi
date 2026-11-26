@@ -1,0 +1,52 @@
+# The agent (AI-18 to AI-20): its tools as Unity Catalog functions in quote_ai_ai (tools.sql, and the live GUDID
+# lookup from AI-19), QuoteAgent logged and registered as quote_ai_ai.quote_agent, and the grants: EXECUTE on the
+# tools for the agent's identity and the sales group, never a grant on the quote tables. Run after
+# quote_ai_search_index (the index and the rule functions) and quote_ai_ml_register (the win model endpoint).
+#   databricks bundle run -t dev quote_ai_agent_registration
+# The agent's identity: the QuoteAI app's service principal in AI-18 and AI-19 (the app runs the agent in-process),
+# the agent app's from AI-20 (quote_ai_agent.app.yml).
+# Verify before recording: the {{...}} and ${workspace.file_path} references (as in quote_ai_search_index.job.yml),
+# mlflow>=3 on serverless, and the service principal reference of an app.
+resources:
+  jobs:
+    quote_ai_agent_registration:
+      name: quote_ai_agent_registration
+      description: 'QuoteAI agent: the tools as UC functions, QuoteAgent registered in UC, least-privilege grants'
+      max_concurrent_runs: 1
+      tags:
+        app: quote_ai
+        part: agent
+      tasks:
+        - task_key: functions
+          environment_key: default
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/agent_job.py
+            parameters: [functions, --live, --source-root, "${workspace.file_path}", --packages, "/Volumes/${var.catalog}/${resources.schemas.quote_ai_ai.name}/${resources.volumes.quote_ai_packages.name}", --win-endpoint, "${resources.model_serving_endpoints.quote_ai_win_model.name}", --catalog, "${var.catalog}", --schemas, &schemas "quote_ai_product=${resources.schemas.quote_ai_product.name},quote_ai_sales=${resources.schemas.quote_ai_sales.name},quote_ai_ai=${resources.schemas.quote_ai_ai.name},quote_ai_gudid_gold=${resources.schemas.quote_ai_gudid_gold.name}"]
+        - task_key: register
+          depends_on: [{ task_key: functions }]
+          environment_key: agent
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/agent_job.py
+            parameters: [register, --experiment, "${resources.experiments.quote_ai_app_traces.name}", --catalog, "${var.catalog}", --schemas, *schemas]
+        - task_key: grants
+          depends_on: [{ task_key: functions }]
+          environment_key: default
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/agent_job.py
+            parameters: [grants, --live, --principal, "${resources.apps.quote_ai_agent.service_principal_client_id}", --group, "${var.quote_ai_reps_group}", --catalog, "${var.catalog}", --schemas, *schemas]
+      environments:
+        - environment_key: default
+          spec:
+            environment_version: '2'
+            dependencies:
+              - pydantic>=2.7
+              - pyyaml>=6
+        - environment_key: agent
+          spec:
+            environment_version: '2'
+            dependencies:
+              - pydantic>=2.7
+              - pyyaml>=6
+              - mlflow>=3.1
+              - databricks-sdk
+              - openai

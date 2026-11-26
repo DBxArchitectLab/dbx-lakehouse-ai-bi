@@ -18,11 +18,7 @@ def svc():
     return QuoteService(InMemoryQuoteRepository(), clock=lambda: fx.NOW)
 
 
-def checks(q, letter, snapshot="ev-41"):
-    p = fx.product(letter)
-    elig = eligibility.check_product(p, q.requirements, fx.evidence(snapshot), snapshot)
-    ful = fulfilment.check_product(p, q.lines, fx.stock(), q.requirements.delivery_days, "inv-2026-11-14")
-    return p, elig, ful
+from quote_ai.fixtures.agents import checks  # noqa: E402  (in the package since AI-22)
 
 
 def to_priced(svc, letter="A", asked=8.00):
@@ -147,3 +143,102 @@ def test_issue_without_approval_is_refused(svc):
     q = to_priced(svc)
     with pytest.raises(QuoteError, match="no valid approval"):
         svc.issue(q.quote_id, q.revision, "rep.alice", key="i", inputs_as_of=fx.fresh_inputs())
+
+
+# ------------------------------------------------------------------ v1 (AI-07): read, confirm, quick quote
+
+from quote_ai.llm.requirements_schema import Requirements as Extracted  # noqa: E402
+from quote_ai.rules.quote_states import InvalidTransition  # noqa: E402
+from quote_ai.rules.simple_rules import NOT_CHECKED  # noqa: E402
+from quote_ai.storage.product_catalog import DemoProductCatalog  # noqa: E402
+
+LAKESIDE_EXTRACTED = {
+    "material": "nitrile", "use": "exam", "powder_free": {"value": True, "hard": True},
+    "latex_free": {"value": True, "hard": True}, "sterile": {"value": None, "hard": False},
+    "chemo_tested": {"value": True, "hard": True}, "sizes": ["S", "M", "L", "XL"], "quantity": 400, "unit": "box",
+    "target_price": {"amount": 8.0, "per_unit": "box"}, "delivery_days": 10,
+    "missing": ["quantity_per_size", "gloves_per_box"]}
+CATALOG = DemoProductCatalog()
+
+
+def read_lakeside(svc):
+    return svc.read_request("Lakeside Regional Clinic", "rep.alice", fx.LAKESIDE_REQUEST,
+                            lambda text: Extracted.model_validate(LAKESIDE_EXTRACTED), quote_id="Q-7")
+
+
+def test_lakeside_reaches_priced_with_one_event_per_move(svc):
+    q = read_lakeside(svc)
+    assert q.state == S.DRAFT and q.requirements == fx.lakeside_r1() and q.extracted["sterile"]["value"] is None
+    q = svc.confirm(q.quote_id, q.revision, "rep.alice", fx.LAKESIDE_SPLIT, "box", 100)
+    assert len(svc.repo.get(q.quote_id).lines) == 4 and q.requirements.version == 2
+    q = svc.quick_quote(q.quote_id, q.revision, "rep.alice", CATALOG.offerable_skus(), CATALOG.price_book())
+    assert q.state == S.PRICED and q.price_method == "v1_list_price"
+    assert q.product_id == "GLOVE-A" and q.total == 3440.00                  # 400 boxes x $8.60 list
+    assert q.checks["chemo_tested"] == NOT_CHECKED and q.checks["delivery"] == NOT_CHECKED
+    assert [e.to_state for e in svc.repo.events(q.quote_id)] == [
+        S.DRAFT, S.REQUIREMENTS_CONFIRMED, S.SHORTLISTED, S.PRICED]
+
+
+def test_v1_matches_exactly_and_never_offers_the_latex_glove_or_the_box_of_200(svc):
+    q = read_lakeside(svc)
+    q = svc.confirm(q.quote_id, q.revision, "rep.alice", fx.LAKESIDE_SPLIT, "box", 100)
+    q = svc.quick_quote(q.quote_id, q.revision, "rep.alice", CATALOG.offerable_skus(), CATALOG.price_book())
+    matched = next(e for e in svc.repo.events(q.quote_id) if e.to_state == S.SHORTLISTED).detail["matches"]
+    assert matched == ["GLOVE-A", "GLOVE-B", "GLOVE-C", "GLOVE-D"]   # E: latex; F: a box of 200, not 100
+
+
+def test_an_unverified_mapping_is_never_quoted(svc):
+    skus = [s.model_copy(update={"mapping_verified": False}) for s in CATALOG.offerable_skus()]
+    q = read_lakeside(svc)
+    q = svc.confirm(q.quote_id, q.revision, "rep.alice", fx.LAKESIDE_SPLIT, "box", 100)
+    with pytest.raises(QuoteError, match="no glove matches"):
+        svc.quick_quote(q.quote_id, q.revision, "rep.alice", skus, CATALOG.price_book())
+    assert svc.repo.get(q.quote_id).state == S.REQUIREMENTS_CONFIRMED
+
+
+def test_lines_must_add_up_to_400(svc):
+    q = read_lakeside(svc)
+    with pytest.raises(QuoteError, match="add up to 390"):               # 50 for S by mistake
+        svc.confirm(q.quote_id, q.revision, "rep.alice", {"S": 50, "M": 140, "L": 140, "XL": 60}, "box", 100)
+    assert [e.action for e in svc.repo.events(q.quote_id)] == ["create"]
+
+
+def test_refused_move_changes_nothing(svc):
+    q = read_lakeside(svc)
+    q = svc.confirm(q.quote_id, q.revision, "rep.alice", fx.LAKESIDE_SPLIT, "box", 100)
+    before, row = svc.repo.events(q.quote_id), svc.repo.get(q.quote_id)
+    with pytest.raises(InvalidTransition, match="REQUIREMENTS_CONFIRMED -> ISSUED"):
+        svc.change_state(q.quote_id, q.revision, "rep.alice", S.ISSUED)
+    with pytest.raises(InvalidTransition):                               # the one door refuses it too
+        svc._move(svc.repo.get(q.quote_id), S.ISSUED, "rep.alice", "issue", q.revision)
+    assert svc.repo.events(q.quote_id) == before and svc.repo.get(q.quote_id) == row
+
+
+def test_the_state_route_only_makes_moves_with_no_step_of_their_own(svc):
+    q = read_lakeside(svc)
+    q = svc.confirm(q.quote_id, q.revision, "rep.alice", fx.LAKESIDE_SPLIT, "box", 100)
+    with pytest.raises(QuoteError, match="its own step"):
+        svc.change_state(q.quote_id, q.revision, "rep.alice", S.SHORTLISTED)    # allowed, but needs quick quote
+    q = svc.change_state(q.quote_id, q.revision, "rep.alice", S.CANCELLED)
+    assert q.state == S.CANCELLED and svc.repo.events(q.quote_id)[-1].action == "cancelled"
+
+
+def test_quick_quote_on_a_draft_is_refused_before_anything_is_written(svc):
+    q = read_lakeside(svc)
+    with pytest.raises(InvalidTransition):
+        svc.quick_quote(q.quote_id, q.revision, "rep.alice", CATALOG.offerable_skus(), CATALOG.price_book())
+    assert len(svc.repo.events(q.quote_id)) == 1
+
+
+def test_a_v1_price_is_never_submitted_for_approval(svc):
+    q = read_lakeside(svc)
+    q = svc.confirm(q.quote_id, q.revision, "rep.alice", fx.LAKESIDE_SPLIT, "box", 100)
+    q = svc.quick_quote(q.quote_id, q.revision, "rep.alice", CATALOG.offerable_skus(), CATALOG.price_book())
+    with pytest.raises(QuoteError, match="v1 prices"):
+        svc.submit(q.quote_id, q.revision, "rep.alice", key="s")
+
+
+def test_my_quotes_are_mine(svc):
+    read_lakeside(svc)
+    svc.create("Harbor Point", "rep.bob", "50 boxes", fx.lakeside_r1(), quote_id="Q-B")
+    assert [q.quote_id for q in svc.mine("rep.alice")] == ["Q-7"]

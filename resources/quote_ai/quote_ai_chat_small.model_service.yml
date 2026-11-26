@@ -1,0 +1,28 @@
+# quote_ai_chat_small (AI-23, experiment E3): a smaller chat model for the comparison explanations, behind Unity
+# Gateway like quote_ai_chat. Created by the bundle so an experiment never uses an ad-hoc key; used only when
+# config/quote_ai/models.yml points the comparison at it (a pull request that must pass the evaluation gate;
+# docs/quote_ai/decisions/0005-optimization.md). The served model is a variable: E3 and E3b are two values of it.
+# Verify before recording: the model names available in the region, and their prices.
+resources:
+  model_services:
+    quote_ai_chat_small:
+      parent: schemas/${var.catalog}.${resources.schemas.quote_ai_ai.name}
+      model_service_id: quote_ai_chat_small_${var.quote_ai_target}
+      comment: QuoteAI comparison on a smaller model (pay-per-token, AI-23); rate-limited per user
+      config:
+        routing:
+          destinations:
+            - name: chat_small
+              destination_type: DESTINATION_TYPE_PAY_PER_TOKEN_FOUNDATION_MODEL
+              pay_per_token_config:
+                model: models/${var.quote_ai_chat_small_model}
+        rate_limits:
+          - key: RATE_LIMIT_KEY_USER_DEFAULT
+            requests: 20
+            renewal_period: RATE_LIMIT_RENEWAL_PERIOD_MINUTE
+        inference_table:
+          parent: schemas/${var.catalog}.${resources.schemas.quote_ai_monitoring.name}
+          table_name_prefix: quote_ai_chat_small
+      grants:
+        - principal: ${var.quote_ai_reps_group}
+          privileges: [EXECUTE]

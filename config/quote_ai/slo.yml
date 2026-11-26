@@ -1,0 +1,25 @@
+# QuoteAI service level objectives (AI-26): they decide when someone gets paged. Read by quote_ai.ops.monitoring for
+# the Ops page, the operating dashboard's status, the alerts and the Operations suite. Changing a target is a reviewed
+# pull request, like the release rule. The limits that REFUSE an issue are a rule, not an SLO: config/quote_ai/policy.yml.
+# Owner of every alert: the QuoteAI platform team (docs/quote_ai/runbooks/incidents.md).
+
+slo:
+  freshness_hours: 24          # every watched source: hours since its last successful run
+  latency_s: 20                # a quote's steps, end to end ...
+  latency_share: 0.95          # ... for 95% of quotes (p95 under latency_s)
+  eligibility_violations: 0    # live scoring: an ineligible glove offered, or unknown counted as a match
+  grounded_rate: 0.90          # live scoring: the grounded_comparison judge on sampled comparisons
+  unknown_share: 0.25          # share of eligibility checks that are unknown: a rise means missing evidence
+  stale_refusals: 0            # issues refused on stale inputs per day: a rise means a source is stale
+  cost_per_quote_usd: 0.50     # average per day, every step included (demo figure)
+
+# The sources the freshness SLO watches (names in quote_ai_monitoring.freshness). The full GUDID release lands once
+# and the synthetic DBxLab files on demand: reported, not alerted.
+watched_sources:
+  - gudid_daily_updates
+  - gudid_api_device_history
+  - supplier_documents
+
+live_scoring:
+  sample_size: 50              # sampled production traces per day
+  seed: 1

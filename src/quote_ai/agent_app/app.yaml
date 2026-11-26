@@ -1,0 +1,20 @@
+# QuoteAgent on the Agent Runtime on Databricks Apps (AI-20): its own app (quote-ai-agent-<target>) and service
+# principal. uvicorn runs quote_ai.agents.server; every value below comes from an app resource
+# (resources/quote_ai/quote_ai_agent.app.yml). Before deploying: python scripts/quote_ai/build_app.py
+# Verify before recording: the Agent Runtime's start command and port, and valueFrom for uc_securable resources.
+command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+env:
+  - name: DATABRICKS_WAREHOUSE_ID
+    valueFrom: sql-warehouse
+  - name: QUOTE_AI_QUOTES_VOLUME
+    valueFrom: quotes-volume
+  - name: QUOTE_AI_CHAT_SERVICE
+    valueFrom: chat-service
+  - name: QUOTE_AI_GENIE_SPACE_ID
+    valueFrom: genie-space
+  - name: QUOTE_AI_WIN_ENDPOINT
+    valueFrom: win-model
+  - name: MLFLOW_EXPERIMENT_ID
+    valueFrom: traces
+  - name: MLFLOW_TRACKING_URI
+    value: databricks

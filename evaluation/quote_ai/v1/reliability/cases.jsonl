@@ -1,0 +1,16 @@
+{"case_id": "R-001", "episode": "AI-18", "scenario": "timeout_then_clear_stop", "expected": {"stop_reason": "tool_unavailable", "attempts": 4, "clear_stop": true}}
+{"case_id": "R-002", "episode": "AI-18", "scenario": "pricing_error_not_retried", "expected": {"refused": true, "calls": 1}}
+{"case_id": "R-003", "episode": "AI-18", "scenario": "same_call_twice_stops", "expected": {"stop_reason": "no_progress", "tool_calls": 2}}
+{"case_id": "R-004", "episode": "AI-18", "scenario": "step_limit", "expected": {"stop_reason": "max_steps", "tool_calls": 8}}
+{"case_id": "R-005", "episode": "AI-19", "scenario": "duplicate_lookup_one_call", "expected": {"api_calls": 1, "second": "duplicate"}}
+{"case_id": "R-006", "episode": "AI-19", "scenario": "genie_down_partial_answer", "expected": {"names_missing": true, "invented_prices": false, "genie_calls": 1, "still_answers_glove_a": true}}
+{"case_id": "R-007", "episode": "AI-19", "scenario": "permission_denied_not_retried", "expected": {"served": "refused", "calls": 1, "error": "PERMISSION_DENIED"}}
+{"case_id": "R-008", "episode": "AI-19", "scenario": "proposal_is_idempotent", "expected": {"same_key": true}}
+{"case_id": "R-009", "episode": "AI-20", "scenario": "gudid_down_fallback_labelled", "expected": {"source": "lakehouse_copy", "as_of": "2026-11-12", "labelled": true}}
+{"case_id": "R-010", "episode": "AI-20", "scenario": "stale_gudid_blocks_issue", "expected": {"refused": true, "names": "gudid", "state": "APPROVED"}}
+{"case_id": "R-011", "episode": "AI-20", "scenario": "fresh_inputs_issue", "expected": {"state": "ISSUED"}}
+{"case_id": "R-012", "episode": "AI-20", "scenario": "migration_mismatch_stops", "expected": {"stopped": true, "rows_left": 0}}
+{"case_id": "R-013", "episode": "AI-21", "scenario": "concurrent_approve_one_wins", "expected": {"results": ["409", "APPROVED"], "approvals": 1}}
+{"case_id": "R-014", "episode": "AI-21", "scenario": "double_issue_one_event", "expected": {"issue_events": 1, "state": "ISSUED"}}
+{"case_id": "R-015", "episode": "AI-21", "scenario": "stale_version_409", "expected": {"status": 409}}
+{"case_id": "R-016", "episode": "AI-21", "scenario": "later_date_voids_approval", "expected": {"requirements_version": 3, "version_up": true, "state": "PENDING_APPROVAL", "can_issue": false}}

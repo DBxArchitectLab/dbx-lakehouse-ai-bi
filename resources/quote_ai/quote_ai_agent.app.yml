@@ -1,0 +1,47 @@
+# QuoteAgent on the Agent Runtime on Databricks Apps (AI-20): the agent deployed for real, as its own app with its own
+# service principal (Model Serving is the legacy route for agents). quote-ai-agent-<target>; apps allow no
+# underscores. The QuoteAI app's chat route calls it (RemoteAgent), with the QuoteAI app's service principal, which
+# has CAN_USE on this app; the app never calls a model itself.
+# The agent's identity gets least privilege: its resources below, EXECUTE on the tool functions and USE CONNECTION on
+# quote_ai_accessgudid (quote_ai_agent_registration job, grants task), never a grant on the quote tables.
+# Before deploying: python scripts/quote_ai/build_app.py (vendors quote_ai into src/quote_ai/agent_app/_vendor).
+#   databricks bundle run -t dev quote_ai_agent
+# Verify before recording: the Agent Runtime's app settings, and an app's service principal in another app's
+# permissions (service_principal_name with ${resources.apps.<key>.service_principal_client_id}).
+resources:
+  apps:
+    quote_ai_agent:
+      name: quote-ai-agent-${bundle.target}
+      description: 'QuoteAI agent (AI-20): the tool-calling loop on the Agent Runtime, stateless, proposes only'
+      source_code_path: ../../src/quote_ai/agent_app
+      resources:
+        - name: sql-warehouse
+          sql_warehouse:
+            id: ${var.quote_ai_warehouse_id}
+            permission: CAN_USE
+        - name: quotes-volume
+          uc_securable:
+            securable_type: VOLUME
+            securable_full_name: ${var.catalog}.${resources.schemas.quote_ai_sales.name}.${resources.volumes.quote_ai_quotes.name}
+            permission: READ_VOLUME
+        - name: chat-service
+          uc_securable:
+            securable_type: MODEL_SERVICE
+            securable_full_name: ${var.catalog}.${resources.schemas.quote_ai_ai.name}.${resources.model_services.quote_ai_chat.model_service_id}
+            permission: EXECUTE
+        - name: genie-space
+          genie_space:
+            name: DBxLab sales analyst
+            space_id: ${var.quote_ai_genie_space_id}
+            permission: CAN_RUN
+        - name: win-model
+          serving_endpoint:
+            name: ${resources.model_serving_endpoints.quote_ai_win_model.name}
+            permission: CAN_QUERY
+        - name: traces
+          experiment:
+            experiment_id: ${resources.experiments.quote_ai_app_traces.id}
+            permission: CAN_EDIT
+      permissions:
+        - service_principal_name: ${resources.apps.quote_ai_app.service_principal_client_id}
+          level: CAN_USE

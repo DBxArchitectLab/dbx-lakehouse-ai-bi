@@ -12,7 +12,7 @@ from quote_ai.ingest.log import InMemoryLog, RunContext, config_rows, logged_run
 
 ROOT = Path(__file__).resolve().parents[2]
 CFG = load_config()
-NAMES = engine.Names(catalog="dbxarchitectlab_dev", 
+NAMES = engine.Names(catalog="deepwater_tst", 
                      schemas={"quote_ai_gudid_bronze": "dev_me_quote_ai_gudid_bronze",
                               "quote_ai_ops": "dev_me_quote_ai_ops"})
 CTX = RunContext(job_id="11", job_run_id="901", run_as="sp-dbx-lakehouse", bundle_target="dev-shared",
@@ -49,9 +49,9 @@ class FakeIO:
 
 def test_names_map_logical_to_physical():
     assert NAMES.table("quote_ai_gudid_bronze.device_raw") == \
-        "dbxarchitectlab_dev.dev_me_quote_ai_gudid_bronze.device_raw"
+        "deepwater_tst.dev_me_quote_ai_gudid_bronze.device_raw"
     assert NAMES.volume_path("quote_ai_gudid_bronze.quote_ai_releases").as_posix() == \
-        "/Volumes/dbxarchitectlab_dev/dev_me_quote_ai_gudid_bronze/quote_ai_releases"
+        "/Volumes/deepwater_tst/dev_me_quote_ai_gudid_bronze/quote_ai_releases"
 
 
 # ------------------------------------------------------------------ the run log
@@ -110,20 +110,22 @@ def test_a_landing_error_is_logged_and_raised(monkeypatch):
 def test_api_first_run_then_the_watermark_moves_on():
     log, api = InMemoryLog(), "gudid_api_device_history"
     io = FakeIO(changed=[("rk-1", date(2026, 11, 12)), ("rk-2", date(2026, 11, 13))])
-    rec = engine.run_api(CFG, api, NAMES, log, io, CTX, TODAY)
+    unfiltered = CFG.model_copy(update={"classification": None})
+    rec = engine.run_api(unfiltered, api, NAMES, log, io, CTX, TODAY)
     assert rec.status == "succeeded" and rec.watermark_from is None and rec.watermark_to == "2026-11-13"
     assert rec.load_ids == ["gudid_api_device_history:20261113"] and io.reads[0]["ids"] == "rk-1,rk-2"
     assert io.reads[0]["param"] == "record_key"
     assert "LEFT ANTI JOIN" in io.queries[0]          # the cache: what we already hold isn't asked again
 
     io2 = FakeIO(changed=[])
-    rec2 = engine.run_api(CFG, api, NAMES, log, io2, CTX.model_copy(update={"job_run_id": "902"}), TODAY)
+    rec2 = engine.run_api(unfiltered, api, NAMES, log, io2, CTX.model_copy(update={"job_run_id": "902"}), TODAY)
     assert "DATE'2026-11-13'" in io2.queries[0]
     assert rec2.status == "no_new_files" and rec2.watermark_to == "2026-11-13" and not io2.reads
 
 
 def test_api_capped_run_is_partial_and_keeps_its_watermark():
     cfg = load_config()
+    cfg.classification = None
     cfg.source("gudid_api_device_history").api.max_requests_per_run = 2
     io = FakeIO(changed=[(f"rk-{i}", date(2026, 11, 13)) for i in range(5)])
     rec = engine.run_api(cfg, "gudid_api_device_history", NAMES, InMemoryLog(), io, CTX, TODAY)
@@ -134,7 +136,7 @@ def test_api_capped_run_is_partial_and_keeps_its_watermark():
 def test_api_failure_is_logged_with_the_error():
     log = InMemoryLog()
     with pytest.raises(RuntimeError):
-        engine.run_api(CFG, "gudid_api_device_history", NAMES, log,
+        engine.run_api(CFG.model_copy(update={"classification": None}), "gudid_api_device_history", NAMES, log,
                        FakeIO(changed=[("rk-1", date(2026, 11, 13))], fail_read=True), CTX, TODAY)
     rec = log.get("901:gudid_api_device_history")
     assert rec.status == "failed" and "gave up after 6 tries" in rec.error
@@ -148,7 +150,7 @@ def test_changed_ids_sql_refuses_anything_but_a_date():
 # ------------------------------------------------------------------ checks, config history, the bundle
 
 def test_every_bronze_table_has_the_three_checks():
-    checks = bronze_checks(CFG, NAMES.table, "dbxarchitectlab_dev.quote_ai_ops")
+    checks = bronze_checks(CFG, NAMES.table, "deepwater_tst.quote_ai_ops")
     tables = {t.target for s in CFG.sources for t in s.tables}
     assert {(c.table, c.name) for c in checks} == {(t, n) for t in tables
                                                     for n in ("one_row_per_key", "load_id_present", "load_id_logged")}
@@ -170,10 +172,12 @@ def test_generated_bundle_resources_match_the_config():
 def test_the_daily_job_lands_then_loads_then_calls_the_api_then_checks():
     job = bundle_gen.job(CFG, "daily")
     order = [t["task_key"] for t in job["tasks"]]
-    assert order == ["setup", "land", "files", "record", "api_gudid_api_device_history", "checks"]
+    assert order == ["setup", "land", "files", "record", "classify_gloves", "api_gudid_api_device_history", "checks"]
     record = job["tasks"][3]
     assert record["run_if"] == "ALL_DONE"            # a failed pipeline is still recorded as failed
     assert job["schedule"]["quartz_cron_expression"] == "0 0 6 * * ?"
+    assert job["schedule"]["timezone_id"] == "UTC"
+    assert job["schedule"]["pause_status"] == "UNPAUSED"
 
 
 def test_the_full_release_job_takes_the_release_date():
