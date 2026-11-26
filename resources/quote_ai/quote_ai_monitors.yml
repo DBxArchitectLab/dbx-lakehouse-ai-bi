@@ -1,0 +1,44 @@
+# The monitors (AI-26). The bundle in this repo has no SQL alert resource type in the CLI it pins, so a setup job
+# creates them: the monitoring tables and views in quote_ai_monitoring (freshness, trace_usage, model_prices,
+# daily_compute, cost_per_quote, live_scores, slo_daily), the model prices from config/quote_ai/models.yml, and two SQL
+# alerts routed to the platform team: a watched source older than 24 h, and the cost per quote above its target
+# (config/quote_ai/slo.yml); and SELECT on what the Ops page and the dashboard read for the app and the managers.
+# The win model's drift monitor stays where AI-14 put it (quote_ai_ml_score).
+#   databricks bundle run quote_ai_monitors -t dev
+# Run after quote_ai_product_model, quote_ai_mock_documents and the ingestion jobs have created the tables it reads.
+# Verify before recording: an `alerts` resource in the current CLI (then move the alerts there), the SQL alerts API.
+resources:
+  jobs:
+    quote_ai_monitors:
+      name: quote_ai_monitors
+      description: 'QuoteAI monitors: monitoring tables and views, model prices, freshness and cost alerts (AI-26)'
+      max_concurrent_runs: 1
+      tags:
+        app: quote_ai
+        part: operations
+      tasks:
+        - task_key: setup
+          environment_key: default
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/ops_job.py
+            parameters: [setup, --catalog, "${var.catalog}", --schemas, &schemas "quote_ai_monitoring=${resources.schemas.quote_ai_monitoring.name},quote_ai_ops=${resources.schemas.quote_ai_ops.name},quote_ai_product=${resources.schemas.quote_ai_product.name},quote_ai_gudid_gold=${resources.schemas.quote_ai_gudid_gold.name},quote_ai_sales=${resources.schemas.quote_ai_sales.name}"]
+        - task_key: alerts
+          depends_on: [{ task_key: setup }]
+          environment_key: default
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/ops_job.py
+            parameters: [alerts, --warehouse-id, "${var.quote_ai_warehouse_id}", --notify, DBX_Architect_Lab_Admin, --catalog, "${var.catalog}", --schemas, *schemas]
+        - task_key: grants
+          depends_on: [{ task_key: setup }]
+          environment_key: default
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/ops_job.py
+            parameters: [grants, --app-sp, "${resources.apps.quote_ai_app.service_principal_client_id}", --managers, "${var.quote_ai_managers_group}", --catalog, "${var.catalog}", --schemas, *schemas]
+      environments:
+        - environment_key: default
+          spec:
+            environment_version: '2'
+            dependencies:
+              - pydantic>=2.7
+              - pyyaml>=6
+              - databricks-sdk

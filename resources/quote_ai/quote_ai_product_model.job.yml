@@ -1,0 +1,46 @@
+# DBxLab's product model (AI-03): GUDID silver and gold, the glove views, the SKU model and its mappings.
+# Run after an ingestion run (quote_ai_ingest_daily, or quote_ai_ingest_on_demand for the DBxLab files):
+#   gudid  -> setup (tables, views, comments, tags) -> seed (synthetic catalog and reps)
+#          -> match (SKU <-> GUDID package level; new matches wait in quote_ai_product.mapping_review_queue)
+# match --demo-verify marks the high-confidence box matches as verified by demo:sales-ops: demo data only. A person's
+# decision: python src/quote_ai/jobs/product_job.py verify --mapping-id ... --reviewer ... (or --reject REASON).
+# The DBxLab catalog is written here, not by the ingestion framework: adding it as an ingestion source is a change to
+# config/quote_ai/ingest/sources.yml, left for a reviewed pull request (see docs/quote_ai/data-sources.md).
+resources:
+  jobs:
+    quote_ai_product_model:
+      name: quote_ai_product_model
+      description: 'QuoteAI product model: GUDID silver and gold, glove views, DBxLab SKUs and SKU <-> GUDID mappings'
+      max_concurrent_runs: 1
+      tags:
+        app: quote_ai
+        part: data
+      tasks:
+        - task_key: gudid
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.quote_ai_gudid.id}
+        - task_key: setup
+          depends_on: [{ task_key: gudid }]
+          environment_key: default
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/product_job.py
+            parameters: [setup, --catalog, "${var.catalog}", --schemas, &schemas "quote_ai_gudid_silver=${resources.schemas.quote_ai_gudid_silver.name},quote_ai_gudid_gold=${resources.schemas.quote_ai_gudid_gold.name},quote_ai_ops=${resources.schemas.quote_ai_ops.name},quote_ai_product=${resources.schemas.quote_ai_product.name},quote_ai_sales=${resources.schemas.quote_ai_sales.name},quote_ai_sales_bronze=${resources.schemas.quote_ai_sales_bronze.name}"]
+        - task_key: seed
+          depends_on: [{ task_key: setup }]
+          environment_key: default
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/product_job.py
+            parameters: [seed, --catalog, "${var.catalog}", --schemas, *schemas]
+        - task_key: match
+          depends_on: [{ task_key: seed }]
+          environment_key: default
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/product_job.py
+            parameters: [match, --demo-verify, --catalog, "${var.catalog}", --schemas, *schemas]
+      environments:
+        - environment_key: default
+          spec:
+            environment_version: '2'
+            dependencies:
+              - pydantic>=2.7
+              - pyyaml>=6

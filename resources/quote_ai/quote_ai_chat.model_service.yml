@@ -1,0 +1,35 @@
+# quote_ai_chat (AI-06): the rep-facing chat model, behind Unity Gateway. One model service per use case, so each has
+# its own access, limits, guardrail and cost line (docs/quote_ai/decisions/0002-gateway-per-use-case.md).
+# The name carries the target (quote_ai_chat_dev, quote_ai_chat_prod), so dev and prod stay apart; code gets it from
+# quote_ai.llm.endpoints, never a literal.
+# Verify before recording (CLI v1.22.1 schema): model_services keys, the parent and model formats, and how a model
+# service is addressed in a chat request.
+resources:
+  model_services:
+    quote_ai_chat:
+      parent: schemas/${var.catalog}.${resources.schemas.quote_ai_ai.name}
+      model_service_id: quote_ai_chat_${var.quote_ai_target}
+      comment: QuoteAI chat for reps (pay-per-token); rate-limited per user; payloads logged to quote_ai_monitoring
+      config:
+        routing:
+          destinations:
+            - name: chat                                    # the served model, from a variable, pay per token
+              destination_type: DESTINATION_TYPE_PAY_PER_TOKEN_FOUNDATION_MODEL
+              pay_per_token_config:
+                model: models/${var.quote_ai_chat_model}
+        rate_limits:                                        # over the limit: HTTP 429
+          - key: RATE_LIMIT_KEY_USER_DEFAULT
+            requests: 20
+            renewal_period: RATE_LIMIT_RENEWAL_PERIOD_MINUTE
+        inference_table:                                    # payload logging: request text is customer data
+          parent: schemas/${var.catalog}.${resources.schemas.quote_ai_monitoring.name}
+          table_name_prefix: quote_ai_chat
+      grants:                                               # EXECUTE: the right to call the service, like a table grant
+        - principal: ${var.quote_ai_reps_group}
+          privileges: [EXECUTE]
+        # The app's service principal gets EXECUTE through the app resource (quote_ai_app.app.yml, AI-07): its
+        # principal exists only once the app does.
+      # Guardrail (a Unity Gateway service policy, Beta): PII in the input is blocked (an email address, a phone
+      # number); a denied call returns HTTP 200 with a block message. Service policies aren't a bundle key in CLI
+      # v1.22.1: create the policy "quote_ai_block_pii" in Unity Gateway and attach it to this service, then record it
+      # here when the bundle supports it. Checked by notebooks/quote_ai/06_gateway_tests.py, call 3.

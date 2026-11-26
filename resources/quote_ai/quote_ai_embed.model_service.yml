@@ -1,0 +1,26 @@
+# quote_ai_embed (AI-06): the embedding model for AI Search (AI-15), behind Unity Gateway. Batch only.
+# Verify before recording: see quote_ai_chat.model_service.yml.
+resources:
+  model_services:
+    quote_ai_embed:
+      parent: schemas/${var.catalog}.${resources.schemas.quote_ai_ai.name}
+      model_service_id: quote_ai_embed_${var.quote_ai_target}
+      comment: QuoteAI embeddings for search indexes (pay-per-token); called by the pipelines' service principal
+      config:
+        routing:
+          destinations:
+            - name: embed
+              destination_type: DESTINATION_TYPE_PAY_PER_TOKEN_FOUNDATION_MODEL
+              pay_per_token_config:
+                model: models/${var.quote_ai_embed_model}
+        rate_limits:
+          - key: RATE_LIMIT_KEY_SERVICE_PRINCIPAL
+            principal: ${var.quote_ai_pipeline_sp}
+            tokens: 5000000
+            renewal_period: RATE_LIMIT_RENEWAL_PERIOD_MINUTE
+        inference_table:
+          parent: schemas/${var.catalog}.${resources.schemas.quote_ai_monitoring.name}
+          table_name_prefix: quote_ai_embed
+      grants:
+        - principal: ${var.quote_ai_pipeline_sp}
+          privileges: [EXECUTE]

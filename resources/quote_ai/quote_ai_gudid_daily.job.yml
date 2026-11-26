@@ -1,0 +1,76 @@
+# The daily GUDID job (AI-26): a change in GUDID flows all the way to what the rep is offered, in order, once a day.
+#   ingest     the AI-02 ingestion job, unchanged (quote_ai_ingest_daily): the daily update file and the API lookups
+#              into bronze, and the ingestion log
+#   gudid      bronze -> silver -> gold (the quote_ai_gudid pipeline, AI-03)
+#   evidence   product_evidence from the GUDID fields and AI values (quote_ai_attributes, AI-08); documents: supplier
+#              documents signed off by QA (quote_ai_documents, AI-09). What eligibility reads
+#   search_doc, index_sync   the SKU search document by MERGE and the AI Search index synced (AI-15): what search reads
+#   freshness  every source and input against its limit (config/quote_ai/slo.yml); a breach fails the run, naming it
+# This job only orchestrates: every task runs an existing job, pipeline or entry point.
+#   databricks bundle run quote_ai_gudid_daily -t dev
+# Schedule: 07:00 UTC, one hour after quote_ai_ingest_daily's own 06:00 trigger (generated from
+# config/quote_ai/ingest/sources.yml, which this episode does not change). The ingest task then finds nothing new
+# (a replay is a no-op, AI-02) and the chain runs on today's file. Once the 06:00 trigger is removed from the
+# ingestion config, move this job to 06:00 (docs/quote_ai/ai-26-operate/README.md).
+# Verify before recording: run_job_task with ${resources.jobs.<key>.id}, run_if on the last task.
+resources:
+  jobs:
+    quote_ai_gudid_daily:
+      name: quote_ai_gudid_daily
+      description: 'QuoteAI daily: ingestion -> silver/gold -> evidence -> search index -> freshness (AI-26)'
+      max_concurrent_runs: 1
+      tags:
+        app: quote_ai
+        part: operations
+      schedule:
+        quartz_cron_expression: "0 0 7 * * ?"
+        timezone_id: UTC
+      tasks:
+        - task_key: ingest
+          run_job_task:
+            job_id: ${resources.jobs.quote_ai_ingest_daily.id}
+        - task_key: gudid
+          depends_on: [{ task_key: ingest }]
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.quote_ai_gudid.id}
+        - task_key: evidence
+          depends_on: [{ task_key: gudid }]
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.quote_ai_attributes.id}
+        - task_key: documents
+          depends_on: [{ task_key: gudid }]
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.quote_ai_documents.id}
+        - task_key: search_doc
+          depends_on: [{ task_key: evidence }, { task_key: documents }]
+          environment_key: default
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/search_job.py
+            parameters: [doc, --catalog, "${var.catalog}", --schemas, &schemas "quote_ai_product=${resources.schemas.quote_ai_product.name},quote_ai_sales=${resources.schemas.quote_ai_sales.name},quote_ai_ai=${resources.schemas.quote_ai_ai.name},quote_ai_gudid_gold=${resources.schemas.quote_ai_gudid_gold.name}"]
+        - task_key: index_sync
+          depends_on: [{ task_key: search_doc }]
+          environment_key: search
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/search_job.py
+            parameters: [index, --what, sku, --endpoint, quote_ai_search, --embedding-endpoint, "quote_ai_embed_${var.quote_ai_target}", --catalog, "${var.catalog}", --schemas, *schemas]
+        - task_key: freshness
+          depends_on: [{ task_key: index_sync }]
+          run_if: ALL_DONE
+          environment_key: default
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/ops_job.py
+            parameters: [freshness, --fail-on-breach, --catalog, "${var.catalog}", --schemas, "quote_ai_monitoring=${resources.schemas.quote_ai_monitoring.name}"]
+      environments:
+        - environment_key: default
+          spec:
+            environment_version: '2'
+            dependencies:
+              - pydantic>=2.7
+              - pyyaml>=6
+        - environment_key: search
+          spec:
+            environment_version: '2'
+            dependencies:
+              - pydantic>=2.7
+              - pyyaml>=6
+              - databricks-vectorsearch

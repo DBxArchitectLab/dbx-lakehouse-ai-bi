@@ -88,6 +88,7 @@ does, its one-time setup, and how to run it.
 | --- | --- |
 | [Workspace-local groups to account groups](README_Local_Account_Group.md) | The `identity-workspace-group-migration` job and the `identity-local-group-drift-check`: what the migration does, naming, inventory tables, setup, run order, and keeping workspaces free of local groups |
 | [QuoteAI](README_QuoteAI.md) | The AI series' application: its architecture, the Lakeside transaction, the package layout, the implementation plan and how to run the tests |
+| [QuoteAI architecture](docs/quote_ai/architecture.md), [deployment guide](docs/quote_ai/deployment-guide.md) | QuoteAI 1.0 (AI-27): the parts and the diagram; from an empty workspace to QuoteAI in prod, in order; release and rollback (`docs/quote_ai/runbooks/`) |
 
 ## One-time setup
 

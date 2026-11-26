@@ -1,0 +1,17 @@
+# AI-04: rerun the model comparison on demand (optional; the notebook also runs interactively). One MLflow run per
+# endpoint on the 30 hand-labelled gloves. No schedule: it calls three pay-per-token endpoints.
+resources:
+  jobs:
+    quote_ai_model_comparison:
+      name: quote_ai_model_comparison
+      description: 'QuoteAI: compare models on the product facts suite (accuracy, tokens, latency per endpoint)'
+      max_concurrent_runs: 1
+      tags:
+        app: quote_ai
+        part: ai_services
+      tasks:
+        - task_key: compare
+          notebook_task:
+            notebook_path: ../../notebooks/quote_ai/04_model_comparison.py
+            base_parameters:
+              endpoints: databricks-meta-llama-3-3-70b-instruct,databricks-llama-4-maverick,databricks-claude-sonnet-4

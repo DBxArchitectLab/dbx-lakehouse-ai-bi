@@ -1,0 +1,165 @@
+# The release rule (AI-22; AI-24 makes data_authorization required, AI-26 operations): sixteen suites, each first shown on the "How we know it's correct" slide of its episode.
+# One file, so changing the rule is a reviewed pull request. Read by evaluation/quote_ai/gate.py.
+#
+#   required  true: a failing threshold fails the release (the runner exits 1); false: declared and reported only
+#   runs      ci: pure code, on every pull request and in the eval job
+#             workspace: needs a model service, the workspace or its data: the quote_ai_eval job only
+#             separate: its own run, as named identities (it tests a different control)
+#             monitored: watched in production, not run by the gate (AI-26)
+#   check     assertion (zero tolerance), metric (must not drop), judge (an LLM grades free text)
+#   needs     on a threshold: judge | review | workspace. Checked only where that input exists (the eval job);
+#             reported as not_run elsewhere, never as a pass
+#   {max: 0}  a gate: anything above 0 fails.  {min: x}: a metric's floor.
+suites:
+  ingestion:
+    episode: AI-02
+    required: true
+    runs: ci
+    check: assertion
+    thresholds:
+      replay_duplicates: {max: 0}          # the same release landed twice is recorded once
+      bad_config_accepted: {max: 0}        # every file in ingestion/bad_configs is refused
+
+  mapping:
+    episode: AI-03
+    required: true
+    runs: ci
+    check: assertion
+    thresholds:
+      unverified_offered: {max: 0}         # zero tolerance: a SKU is offered only after a person verified it
+      mapping_failures: {max: 0}
+
+  requirements:
+    episode: AI-05
+    required: true
+    runs: workspace                        # the extraction model service, through Unity Gateway
+    check: metric
+    thresholds:
+      field_accuracy: {min: 0.95}
+
+  model_access:
+    episode: AI-06
+    required: true
+    runs: separate                         # notebooks/quote_ai/06_gateway_tests.py, as each identity
+    check: assertion
+    thresholds:
+      unauthorized: {max: 0}
+      unexpected_outcomes: {max: 0}
+
+  product_facts:
+    episode: AI-08/09
+    required: true
+    runs: workspace
+    check: metric
+    thresholds:
+      status_violations: {max: 0}          # no AI-extracted row verified, no structured value overwritten
+      min_attribute_accuracy: {min: 0.90}
+      match_rate: {min: 1.0, needs: workspace}   # supplier documents: every value matches its source exactly
+
+  genie:
+    episode: AI-11
+    required: true
+    runs: workspace
+    check: metric
+    thresholds:
+      benchmark: {min: 0.90}
+
+  win_model:
+    episode: AI-13
+    required: true
+    runs: ci                               # the selection rule on its cases; the trained models in the workspace
+    check: assertion
+    thresholds:
+      decision_failures: {max: 0}
+      beats_baseline: {equals: 1, needs: workspace}    # synthetic held-out months: a simulation, not a sales claim
+      signal_recovered: {equals: 1, needs: workspace}
+
+  eligibility:
+    episode: AI-15
+    required: true
+    runs: ci
+    check: assertion
+    thresholds:
+      eligibility_violations: {max: 0}
+      unknown_as_match: {max: 0}
+      eligibility_case_failures: {max: 0}
+
+  fulfilment:
+    episode: AI-15
+    required: true
+    runs: ci
+    check: assertion
+    thresholds:
+      wrong_decision: {max: 0}             # full, partial, backorder, alternative date
+
+  search:
+    episode: AI-15
+    required: true
+    runs: ci
+    check: metric
+    thresholds:
+      recall_at_5: {min: 0.85}
+      eligibility_violations: {max: 0}
+
+  comparison:
+    episode: AI-16/17
+    required: true
+    runs: ci                               # the deterministic part on every pull request; the judge in the job
+    check: judge
+    thresholds:
+      layer_cited: {min: 1.0}              # every statement cites a source and names its truth layer
+      cross_account_violations: {max: 0}
+      no_evidence_failures: {max: 0}
+      grounded_rate: {min: 0.90, needs: judge}           # the grounded_comparison guideline judge
+      judge_human_agreement: {min: 0.80, needs: review}  # the review app's labels on a sample of its decisions
+
+  pricing:
+    episode: AI-18
+    required: true
+    runs: ci
+    check: assertion
+    thresholds:
+      errors: {max: 0}
+
+  workflow:
+    episode: AI-18/21
+    required: true
+    runs: ci
+    check: assertion
+    thresholds:
+      illegal_transitions: {max: 0}
+      commits_outside_quote_service: {max: 0}
+      rule_fidelity_violations: {max: 0}
+      tool_order_ok: {min: 0.95}
+
+  reliability:
+    episode: AI-18/21
+    required: true
+    runs: ci
+    check: assertion
+    thresholds:
+      duplicate_effects: {max: 0}
+      stale_issue_refused: {equals: 1}
+      concurrent_approvals_handled: {equals: 1}
+      reliability_failures: {max: 0}
+
+  data_authorization:
+    episode: AI-24
+    required: true                         # declared in AI-22; filled and required in AI-24
+    runs: ci                               # each case as a named identity through the app's API (security.py);
+    check: assertion                       # in the workspace, as the real identities, separately from model access
+    thresholds:
+      unauthorized: {max: 0}
+
+  operations:
+    episode: AI-26
+    required: true                         # declared in AI-22; filled and required in AI-26 (evaluation/quote_ai/operations.py)
+    runs: ci                               # the operating rules on fixtures; production's own numbers are on the Ops page
+    check: assertion
+    thresholds:
+      stale_offered: {max: 0}              # a glove out of distribution still offered after the daily run
+      report_not_reflected: {max: 0}       # Glove B not eligible on the first run after its verified report
+      stale_issued: {max: 0}               # a quote issued on inputs older than the policy allows
+      freshness_wrong: {max: 0}            # the freshness SQL names exactly the sources past their limit
+      cost_wrong: {max: 0}                 # every quote carries every step, the app's compute included
+      live_scoring_wrong: {max: 0}         # the gate's scorers score live traces as they score the suites

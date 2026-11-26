@@ -1,0 +1,105 @@
+# The DBxLab sales analyst (AI-11): a Genie Agent (formerly a Genie space) defined as code, the source of truth.
+# deploy_genie.py creates or updates the agent from this file (job quote_ai_genie). {sales}, {product}, {gudid_gold}
+# and {gudid_silver} become catalog.schema for the target (quote_ai.storage.sql_files); the warehouse comes from the
+# job's parameters. One agent for sales and catalog questions, with separate instructions and benchmark sections;
+# split it if the benchmark shows the topics interfere. Shared with the Sales groups only.
+# Data it sees, and nothing else: the metric views, quotes, orders, customers, the DBxLab SKU model and the GUDID
+# glove devices with their sizes. Not product_evidence. Cost columns are masked for reps in AI-24.
+title: DBxLab sales analyst
+description: >-
+  Plain-language answers about DBxLab's sales (quotes, orders, win rate, discount, turnaround) and its glove catalog.
+  Synthetic demo data. Answers data questions only; it does not decide eligibility or price a quote.
+benchmark: evaluation/quote_ai/v1/genie/cases.jsonl
+
+tables:
+  - name: "{sales}.quote_metrics"
+    columns: [region, rep, account, product_family, material, month, state, quotes, win_rate, avg_discount_pct,
+              quote_turnaround_h, approval_rate]
+  - name: "{sales}.order_metrics"
+    columns: [region, rep, account, product_family, material, sku, month, orders, units, revenue, avg_unit_price,
+              margin_pct]
+  - name: "{sales}.quote_fact"
+    columns: [quote_id, account_name, region, rep_id, product_family, material, size, quantity, unit_price, state,
+              outcome, requested_at, issued_at, decided_at, approval_needed]
+  - name: "{sales}.order_line"
+    columns: [order_id, account_id, rep_id, sku_id, order_date, quantity, unit_price, list_price]
+  - name: "{sales}.customer"
+    columns: [account_id, name, tier, region]
+  - name: "{product}.dbxlab_product"
+    columns: [product_id, name, material, intended_use, powder_free, latex_free]
+  - name: "{product}.dbxlab_sku"
+    columns: [sku_id, product_id, catalog_number, size, material, intended_use, unit, gloves_per_unit, sellable]
+  - name: "{gudid_gold}.glove_devices"
+    columns: [primary_di, brand_name, company_name, catalog_number, device_description, labeled_no_nrl,
+              labeled_contains_nrl, device_sterile, in_commercial_distribution, product_codes]
+  - name: "{gudid_silver}.device_size"
+    columns: [primary_di, size_type, size_value, size_text, size_unit]
+
+instructions:
+  sales: |
+    Use the metric views for win rate, discount, margin, turnaround and approvals: SELECT MEASURE(win_rate) FROM
+    quote_metrics. Never compute a ratio yourself and never average a ratio over reps or regions.
+    Win rate counts expired quotes as lost and excludes cancelled ones; that is in the metric view already.
+    "Sales", "bought", "purchased" and "revenue" mean orders (order_line, order_metrics), not quotes.
+    "Last year" means the last 12 months (order_date >= add_months(current_date(), -12)) unless a calendar year is
+    named. "Last quarter" means the previous calendar quarter.
+    An account is named in customer.name (Lakeside = Lakeside Regional Clinic, account_id ACC-001).
+  catalog: |
+    "Box" means DBxLab's selling unit in dbxlab_sku: gloves_per_unit gloves (100 or 200). A GUDID package quantity is
+    not a DBxLab box. "We carry" or "we sell" means dbxlab_sku with sellable = true; GUDID glove devices are what
+    suppliers register, not DBxLab's catalog.
+    GUDID flags are text: labeled_no_nrl = 'true' means labelled as not made with natural rubber latex.
+    Glove sizes like 7.5 are in device_size (size_value or size_text).
+  limits: |
+    Answer with data. Do not recommend which glove to offer, decide eligibility or price a quote: that is the quote
+    agent's job, with rules. Say so, and show the data that is relevant.
+
+ontology:
+  - term: account
+    maps_to: customer.name
+    synonyms: [customer, clinic, buyer]
+  - term: box
+    maps_to: dbxlab_sku.unit (gloves_per_unit gloves)
+    synonyms: [selling unit, pack]
+  - term: product family
+    maps_to: dbxlab_product.product_id
+    synonyms: [glove, product, family]
+  - term: win
+    maps_to: quote_metrics.win_rate (outcome WON; EXPIRED counts as lost)
+    synonyms: [won quote, closed won]
+  - term: discount
+    maps_to: quote_metrics.avg_discount_pct
+    synonyms: [price reduction, markdown]
+  - term: sales
+    maps_to: order_line, order_metrics.revenue
+    synonyms: [bought, purchases, orders, revenue]
+
+example_queries:
+  - question: What has Lakeside bought in the last year, and at what price?
+    sql: |
+      SELECT s.sku_id, SUM(o.quantity) AS boxes, SUM(o.unit_price * o.quantity) / SUM(o.quantity) AS avg_price
+      FROM {sales}.order_line o
+      JOIN {sales}.customer c ON c.account_id = o.account_id
+      JOIN {product}.dbxlab_sku s ON s.sku_id = o.sku_id
+      WHERE c.name = 'Lakeside Regional Clinic'
+        AND o.order_date >= add_months(current_date(), -12)
+      GROUP BY s.sku_id
+      ORDER BY s.sku_id
+  - question: Win rate for nitrile exam gloves last quarter, by region
+    sql: |
+      SELECT region, MEASURE(win_rate) AS win_rate
+      FROM {sales}.quote_metrics
+      WHERE material = 'nitrile'
+        AND month >= date_trunc('QUARTER', add_months(current_date(), -3))
+        AND month < date_trunc('QUARTER', current_date())
+      GROUP BY region
+  - question: How many gloves are in a box of DBX-NE-M-200?
+    sql: |
+      SELECT catalog_number, unit, gloves_per_unit
+      FROM {product}.dbxlab_sku
+      WHERE catalog_number = 'DBX-NE-M-200'
+
+sample_questions:
+  - What has Lakeside bought in the last year, and at what price?
+  - What is our win rate on nitrile exam gloves by region?
+  - How many latex-free sterile surgical gloves in size 7.5 do we carry?

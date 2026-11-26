@@ -1,0 +1,64 @@
+body { font-family: system-ui, sans-serif; margin: 0; background: #f7f8fa; color: #1b1f24; }
+.app { max-width: 960px; margin: 0 auto; padding: 16px; }
+header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+h1 .v { font-size: 0.6em; color: #8a5a00; }
+nav { display: flex; gap: 4px; flex-wrap: wrap; }
+.tab { background: none; border: 1px solid #ccd; padding: 6px 10px; cursor: pointer; }
+.tab.on { background: #1b1f24; color: #fff; }
+section { background: #fff; border: 1px solid #e3e5e8; padding: 16px; margin-top: 12px; }
+label { display: block; margin: 8px 0; }
+textarea, input, select { width: 100%; box-sizing: border-box; padding: 6px; }
+.questions label { display: inline-block; width: 120px; margin-right: 8px; }
+table { border-collapse: collapse; width: 100%; margin: 8px 0; }
+th, td { text-align: left; padding: 4px 8px; border-bottom: 1px solid #eee; }
+.state { font-family: monospace; background: #eef; padding: 2px 6px; }
+.banner { background: #fff4d6; border: 1px solid #e0b84d; padding: 8px; margin-top: 8px; }
+.error { color: #b00020; }
+.muted { color: #666; }
+button { padding: 6px 12px; margin-top: 8px; cursor: pointer; }
+button.link { background: none; border: none; color: #0645ad; padding: 0; margin: 0; }
+/* Season 2: evidence badges (AI-08), documents (AI-09), My pipeline (AI-10), Ask the data (AI-11) */
+.badge { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 0.85em; cursor: help; }
+.badge.verified { background: #d9f2df; color: #145a2a; }
+.badge.unverified { background: #fff0c2; color: #7a5200; }
+.badge.conflicting { background: #fbd9d9; color: #8a1010; }
+.badge.superseded { background: #e6e6e6; color: #555; text-decoration: line-through; }
+.embed { width: 100%; height: 80vh; border: 1px solid #e3e5e8; }
+pre.sql { background: #f3f4f6; padding: 8px; overflow-x: auto; white-space: pre-wrap; }
+
+/* AI-14: candidate prices on the Quote page */
+input.price { width: 5em; margin-right: 0.5em; }
+
+/* AI-15: the Shortlist screen's check chips. Grey (unknown) is never a pass. */
+.chip { display: inline-block; padding: 1px 8px; margin: 1px 4px 1px 0; border-radius: 10px; font-size: 0.8em; cursor: help; }
+.chip.verified_match { background: #d9f2df; color: #145a2a; }
+.chip.verified_mismatch { background: #fbd9d9; color: #8a1010; }
+.chip.unknown { background: #e6e6e6; color: #444; }
+td.late { color: #8a5a00; }
+
+/* AI-16: the compare view. Every statement shows its layer of truth and its citation. */
+.layer { font-size: 0.75em; padding: 0 6px; border-radius: 8px; background: #eee; }
+.layer.business_truth { background: #d9f2df; color: #145a2a; }
+.layer.extracted_claim { background: #fff0c2; color: #7a5200; }
+.layer.no_evidence { background: #e6e6e6; color: #444; }
+.answer { border-left: 3px solid #ccd; padding-left: 8px; margin: 8px 0; }
+.ask { margin: 8px 0; }
+.source { border: 1px solid #e0b84d; padding: 8px; margin-top: 8px; }
+
+/* Season 5: the chat panel (AI-18), source badges (AI-19), proposals and memory (AI-20), pricing and approvals (AI-21) */
+.chat { border-top: 1px solid #e3e5e8; margin-top: 16px; padding-top: 8px; }
+.chat .msg { margin: 6px 0; white-space: pre-wrap; }
+.chat .msg.user { color: #0645ad; }
+.chat .step { color: #666; font-size: 0.85em; }
+.chat .step::before { content: "\2026 "; }
+.srcbadge { display: inline-block; padding: 1px 8px; margin: 2px 4px 2px 0; border-radius: 10px; font-size: 0.8em; background: #eef; cursor: help; }
+.srcbadge.accessgudid_live { background: #d9f2df; color: #145a2a; }
+.srcbadge.lakehouse_copy { background: #e6eefc; color: #1b3a73; }
+.srcbadge.genie { background: #f1e6fc; color: #4b1b73; }
+.srcbadge.skill { background: #fff0c2; color: #7a5200; }
+.srcbadge.unavailable, .srcbadge.refused { background: #fbd9d9; color: #8a1010; }
+.card { border: 1px solid #ccd; padding: 8px; margin: 8px 0; background: #fafbff; }
+/* Season 7: the Ops page (AI-26) */
+.badge.ok { background: #d9f2df; color: #145a2a; }
+.badge.bad { background: #fbd9d9; color: #8a1010; }
+tr.bad td { background: #fdecec; }

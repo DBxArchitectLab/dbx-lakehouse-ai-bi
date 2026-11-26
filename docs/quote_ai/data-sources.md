@@ -58,3 +58,52 @@ bronze.
 
 **Retention:** the landing volumes and `quote_ai_ops.ingestion_file` are kept for the life of the project, because they are
 the record of what was published. `quote_ai_ops.ingestion_log` is kept for at least a year.
+
+## Silver, gold and the product model (AI-03)
+
+Built from the bronze above by `resources/quote_ai/quote_ai_product_model.job.yml`: the `quote_ai_gudid` pipeline, then
+`src/quote_ai/jobs/product_job.py` (`setup`, `seed`, `match`). Bronze is only read.
+
+| Object | What | Truth |
+| --- | --- | --- |
+| `quote_ai_gudid_silver.device_history` | Every published version of a device (SCD type 2, AUTO CDC by record key and version) | Source |
+| `quote_ai_gudid_silver.device` | The current version per device | Source |
+| `quote_ai_gudid_silver.package`, `gmdn_term`, `product_code`, `device_size` | Child tables: package levels and quantities, GMDN, FDA codes, sizes | Source |
+| `quote_ai_gudid_gold.device_distribution` | Current version, in distribution or not, and the day it left | Source |
+| `quote_ai_gudid_gold.glove_devices`, `glove_packages` | Published devices in AI-02's glove category (`quote_ai_ops.glove_devices`), and their package levels | Source |
+| `quote_ai_product.dbxlab_product`, `dbxlab_sku` | DBxLab's catalog: one SKU per product, size and selling unit (synthetic) | Business |
+| `quote_ai_product.product_device_mapping` | SKU <-> GUDID device at its package level; method, confidence, verification status | Business once verified |
+| `quote_ai_product.mapping_review_queue`, `sku_offerable` | What waits for a person; what can be offered | - |
+| `quote_ai_sales.price_book`, `inventory_snapshot`, `customer` | Typed views over AI-02's synthetic bronze | Business |
+| `quote_ai_sales.rep`, `quote_history` | Sales team; closed quotes with outcomes from a planted signal (`quote_ai.mock.catalog.SIGNAL`) | Synthetic |
+
+**Demo binding.** DBxLab is fictional, so its SKUs have no real supplier. `match` gives each SKU a real GUDID glove
+device as its supplier record (the first unused device by primary DI with a catalog number and a box of the SKU's
+count), then matches on catalog number and package level. `--demo-verify` marks the high-confidence box matches as
+verified by `demo:sales-ops`; every other level (each, case) waits in the review queue. Demo data only.
+
+**Not yet an ingestion source.** The DBxLab catalog and reps are written by the product job from
+`quote_ai.mock.catalog`, and since AI-12 the quote history, customer prices and inventory history by the win model's
+job (`ml_job.py seed`, from `quote_ai.mock.generate_dbxlab`), not landed by the ingestion framework. Landing them through `dbxlab_synthetic` would mean
+new tables in `config/quote_ai/ingest/sources.yml` and a change to `quote_ai.ingest.synthetic`: a reviewed change to
+the framework, not part of AI-03. GUDID sterilization (`sterilization*.txt`) isn't a bronze table either; silver
+uses `device_sterile` and `sterilization_prior_to_use` from `device.txt`.
+
+## Season 4: search and knowledge (AI-15 to AI-17)
+
+| Object | What | Truth |
+| --- | --- | --- |
+| `quote_ai_product.dbxlab_range`, `range_evidence` | The wider glove range G to R (`quote_ai.mock.range`): catalog-only, no price book or stock rows, with GUDID-like fields, AI-read values and demo:qa-verified spec and chemo rows | Synthetic |
+| `quote_ai_product.catalog_skus`, `eligibility_evidence` | What the eligibility engine reads: DBxLab SKUs and the range; glove_evidence and the range evidence | Business when verified |
+| `quote_ai_ai.sku_search_doc` -> `sku_search_index` | One row per sellable SKU; the AI Search index. Finds candidates, never decides | Search text holds claims |
+| `quote_ai_ai.knowledge_chunks` -> `knowledge_index` | Chunks of the parsed supplier PDFs, GUDID descriptions, the playbook, GMDN notes and customer price sheets (`quote_ai.mock.knowledge`), each with its truth layer and account | Per chunk |
+| `quote_ai_sales.rep_account` | Which accounts each rep owns: the knowledge retrieval filter | Synthetic |
+| `quote_ai_eval.search_cases`, `eligibility_cases`, `comparison_cases` | The evaluation suites, loaded from `evaluation/quote_ai/v1` | Test data |
+
+**Evidence the contract needed.** Since AI-15, `intended_use` comes verified from a device's FDA product code (LZA,
+LYY, LYZ, LZC exam; KGO surgical) and `material` / `powder_free` from the spec sheets (verified through AI-09's five
+checks); before, they existed only as AI-read values. The synthetic spec sheets carry the two new lines.
+
+**Not an ingestion source.** The range, the knowledge texts and the rep accounts are written by the search and
+knowledge jobs from `quote_ai.mock`, like the catalog. Landing them through `dbxlab_synthetic` would be a reviewed
+change to the ingestion config and `quote_ai.ingest.synthetic` (not made).

@@ -1,0 +1,20 @@
+# The sales overview (AI-10): an AI/BI dashboard as code, promoted dev -> prod like a job. Its datasets query the metric
+# views only, with unqualified names; dataset_catalog and dataset_schema point them at this target's catalog and
+# sales schema, so no catalog is hard-coded. Viewers see data with their own credentials (embed_credentials: false);
+# the rep filter becomes a row filter in AI-24. The QuoteAI app's My pipeline page embeds the published dashboard.
+# Verify before recording: dataset_catalog / dataset_schema (CLI 0.281+), embed_credentials, and embedding (allowed
+# domains for the app).
+resources:
+  dashboards:
+    quote_ai_sales_overview:
+      display_name: "QuoteAI - Sales overview"
+      file_path: ../../src/quote_ai/semantic/sales_overview.lvdash.json
+      warehouse_id: ${var.quote_ai_warehouse_id}
+      dataset_catalog: ${var.catalog}
+      dataset_schema: ${resources.schemas.quote_ai_sales.name}
+      embed_credentials: false
+      permissions:
+        - group_name: ${var.quote_ai_reps_group}
+          level: CAN_RUN
+        - group_name: ${var.quote_ai_managers_group}
+          level: CAN_RUN

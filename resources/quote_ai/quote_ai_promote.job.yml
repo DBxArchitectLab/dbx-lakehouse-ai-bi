@@ -1,0 +1,37 @@
+# Alias promotion (AI-25): promote, don't rebuild. Reads the release manifest (release/release.yml, deployed with the
+# bundle from the same commit), checks that every model and prompt version exists in this target's catalog, then
+# moves the champion aliases to exactly those versions. Started by cd.yml after the deploy and the rules setup; prod
+# aliases change only here, never by hand in the UI. Rollback is the same job with the previous release's manifest.
+#   databricks bundle run quote_ai_promote -t prod
+# Runs as sp-dbx-lakehouse in dev-shared and prod (the target's run_as).
+# Verify before recording: mlflow>=3 prompt alias APIs on serverless (quote_ai.ops.promote.MlflowRegistry).
+resources:
+  jobs:
+    quote_ai_promote:
+      name: quote_ai_promote
+      description: 'QuoteAI release: move the champion aliases (models, prompts) to the release manifest (AI-25)'
+      max_concurrent_runs: 1
+      tags:
+        app: quote_ai
+        part: release
+      tasks:
+        - task_key: check
+          environment_key: default
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/release_job.py
+            parameters: [check, --manifest, "${workspace.file_path}/release/release.yml", --catalog, "${var.catalog}", --schemas, &schemas "quote_ai_ml=${resources.schemas.quote_ai_ml.name},quote_ai_ai=${resources.schemas.quote_ai_ai.name}"]
+        - task_key: promote
+          depends_on: [{ task_key: check }]
+          environment_key: default
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/release_job.py
+            parameters: [promote, --manifest, "${workspace.file_path}/release/release.yml", --catalog, "${var.catalog}", --schemas, *schemas]
+      environments:
+        - environment_key: default
+          spec:
+            environment_version: '2'
+            dependencies:
+              - pydantic>=2.7
+              - pyyaml>=6
+              - mlflow>=3.1
+              - databricks-sdk

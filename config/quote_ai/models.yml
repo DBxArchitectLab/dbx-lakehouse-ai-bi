@@ -1,0 +1,19 @@
+# QuoteAI models per use (AI-23): one model service per use, each with its own token limit. Swapping a model is a
+# one-line change here, in a pull request that must pass the evaluation gate (AI-22). The service name gets the bundle
+# target appended in code (quote_ai_chat -> quote_ai_chat_dev); every service is created by the bundle and governed by
+# Unity Gateway (resources/quote_ai/quote_ai_*.model_service.yml): grants and rate limits, never an ad-hoc key.
+# Read by quote_ai.llm.client.model_for. Prices are list prices per 1,000 tokens for the cost per quote the
+# experiments log (demo figures; verify the region's prices before recording).
+
+uses:
+  extraction: {service: quote_ai_extract, max_tokens: 800}
+  comparison: {service: quote_ai_chat, max_tokens: 600}     # E3 (AI-23): quote_ai_chat_small once 0005 promotes it
+  agent:      {service: quote_ai_chat, max_tokens: 1000}
+  embedding:  {service: quote_ai_embed}
+
+# What each service costs, for cost_per_quote (USD per 1,000 tokens, input / output).
+prices:
+  quote_ai_extract:    {input: 0.0005, output: 0.0015}
+  quote_ai_chat:       {input: 0.0005, output: 0.0015}
+  quote_ai_chat_small: {input: 0.00012, output: 0.0004}
+  quote_ai_embed:      {input: 0.0001, output: 0.0}

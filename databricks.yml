@@ -10,6 +10,11 @@ include:
 sync:
   exclude:
     - src/notebooks/shared/**
+  # The QuoteAI app's build outputs are git-ignored but must reach the app (scripts/quote_ai/build_app.py).
+  include:
+    - src/quote_ai/app/_vendor/**
+    - src/quote_ai/app/frontend/dist/**
+    - src/quote_ai/agent_app/_vendor/**   # AI-20: the agent app on the Agent Runtime
 
 variables:
   catalog:
@@ -19,6 +24,49 @@ variables:
     default: lakehouse
   env:
     description: Environment of the target workspace (dev or prod); used in migrated account group names
+  # QuoteAI (AI-06, AI-07): the models behind the Unity Gateway model services, who may call them, and the app's
+  # warehouse. Everything QuoteAI deploys is in resources/quote_ai/.
+  quote_ai_target:
+    description: The target as it appears in QuoteAI object names (quote_ai_chat_<this>); no hyphens
+    default: dev
+  quote_ai_chat_model:
+    description: Unity Catalog model behind quote_ai_chat (pay-per-token; AI-04's choice for chat)
+    default: system.ai.meta_llama_v3_3_70b_instruct
+  quote_ai_extract_model:
+    description: Unity Catalog model behind quote_ai_extract (pay-per-token; AI-04's choice for extraction)
+    default: system.ai.meta_llama_v3_3_70b_instruct
+  quote_ai_embed_model:
+    description: Unity Catalog model behind quote_ai_embed (pay-per-token embeddings)
+    default: system.ai.gte_large_en
+  quote_ai_chat_small_model:
+    description: Unity Catalog model behind quote_ai_chat_small (AI-23, E3; verify the region's models before recording)
+    default: system.ai.meta_llama_v3_1_8b_instruct
+  quote_ai_reps_group:
+    description: Account group of DBxLab's sales reps (QuoteAI chat and the app)
+    default: DBxLab_Sales_Reps
+  quote_ai_managers_group:
+    description: Account group of DBxLab's sales managers (the sales dashboard and the Genie Agent, AI-10, AI-11)
+    default: DBxLab_Sales_Managers
+  quote_ai_genie_space_id:
+    description: Space ID of the DBxLab sales analyst Genie Agent (printed by the quote_ai_genie job, AI-11); the app's
+      Ask the data panel asks it. Set it per target once the agent exists, then deploy again.
+    default: ""
+  quote_ai_pipeline_sp:
+    description: Application ID of the identity that runs QuoteAI's jobs and pipelines (sp-dbx-lakehouse)
+    default: 9a769c8e-a44b-4009-9378-719753df14c7
+  quote_ai_win_model_version:
+    description: The quote_ai_ml.win_model version the win model endpoint serves (AI-14). CD sets it from the
+      @champion alias (scripts/quote_ai/win_model_smoke.py --champion-version); the register job moves the endpoint
+      when it promotes. Never pick a version by hand.
+    default: "1"
+  quote_ai_lakebase_instance:
+    description: The Lakebase instance QuoteAI's transactional store lives on (AI-20; provisioned in
+      dbx-platform-infra-azure). Instance names allow no underscores.
+    default: quote-ai-db
+  quote_ai_warehouse_id:
+    description: ID of the SQL warehouse the QuoteAI app reads and writes through; set it per target or with
+      --var quote_ai_warehouse_id=... (a lookup by name would make every deploy of this bundle depend on it)
+    default: ""
 
 # Developers deploy their own copy to dev by hand (target dev). Everything shared, the dev-shared copy and prod, is
 # deployed by GitHub Actions as sp-dbx-lakehouse, never by hand.
@@ -44,6 +92,7 @@ targets:
     variables:
       catalog: dbxarchitectlab_dev
       env: dev
+      quote_ai_target: dev_shared
     presets:
       trigger_pause_status: PAUSED
     run_as:
@@ -63,6 +112,7 @@ targets:
     variables:
       catalog: dbxarchitectlab_prod
       env: prod
+      quote_ai_target: prod
     run_as:
       service_principal_name: "9a769c8e-a44b-4009-9378-719753df14c7"   # sp-dbx-lakehouse
     permissions:

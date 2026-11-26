@@ -92,7 +92,7 @@ def test_discount_bands(asked, expected):
 
 
 def test_lakeside_7_percent_needs_a_manager():
-    row = pricing.price_quote("GLOVE-A-M", 140, "standard", fx.price_book())
+    row = pricing.book_price("GLOVE-A-M", 140, "standard", fx.price_book())
     assert row.list_price == 8.60
     assert pricing.approval_required(row.list_price, 8.00, row, POLICY.pricing) == "MANAGER"
 

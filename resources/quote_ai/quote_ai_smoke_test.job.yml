@@ -1,0 +1,28 @@
+# The post-deploy smoke test (AI-25): the app's health route, then one Lakeside request through the app's own API
+# (New request -> Confirm -> Shortlist -> Price): it must reach PRICED with zero violations. The smoke quote is then
+# cancelled. A failure fails the run, and cd.yml stops and points to docs/quote_ai/runbooks/release-and-rollback.md.
+#   databricks bundle run quote_ai_smoke_test -t prod
+# Runs as sp-dbx-lakehouse (the target's run_as), which needs CAN_USE on the app and the Lakeside account.
+# Verify before recording: calling an app's URL with a service principal's OAuth token (quote_ai.ops.smoke_test).
+resources:
+  jobs:
+    quote_ai_smoke_test:
+      name: quote_ai_smoke_test
+      description: 'QuoteAI release: smoke test through the app API, Lakeside request to PRICED (AI-25)'
+      max_concurrent_runs: 1
+      tags:
+        app: quote_ai
+        part: release
+      tasks:
+        - task_key: smoke
+          environment_key: default
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/release_job.py
+            parameters: [smoke, --app, "${resources.apps.quote_ai_app.name}"]
+      environments:
+        - environment_key: default
+          spec:
+            environment_version: '2'
+            dependencies:
+              - databricks-sdk
+              - requests>=2.31

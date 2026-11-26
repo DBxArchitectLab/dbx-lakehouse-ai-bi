@@ -1,0 +1,27 @@
+# Supplier documents to quality evidence (AI-09): parse (ai_parse_document), extract (ai_extract), verify (the five
+# checks in quote_ai.product.evidence). Reads new PDFs from the quote_ai_documents volume incrementally (Auto Loader),
+# the document registry, the QA sign-offs and the verified SKU mappings; writes parsed_documents, document_values and
+# supplier_quality_evidence to quote_ai_product. Only this pipeline writes evidence; reps read through views.
+#   databricks bundle run quote_ai_documents -t dev        (or as a task of quote_ai_mock_documents)
+# Verify before recording: ai_parse_document in a serverless pipeline, and cloudFiles with binaryFile.
+resources:
+  pipelines:
+    quote_ai_documents:
+      name: quote_ai_documents
+      catalog: ${var.catalog}
+      schema: ${resources.schemas.quote_ai_product.name}
+      serverless: true
+      continuous: false
+      libraries:
+        - file: { path: ../../src/quote_ai/pipelines/documents.py }
+      environment:
+        dependencies:
+          - pydantic>=2.7
+          - pyyaml>=6
+      configuration:
+        quote_ai.src_path: ${workspace.file_path}/src
+        quote_ai.catalog: ${var.catalog}
+        quote_ai.schemas: quote_ai_product=${resources.schemas.quote_ai_product.name},quote_ai_ai=${resources.schemas.quote_ai_ai.name}
+        quote_ai.documents_path: /Volumes/${var.catalog}/${resources.schemas.quote_ai_ai.name}/${resources.volumes.quote_ai_documents.name}
+      tags:
+        app: quote_ai

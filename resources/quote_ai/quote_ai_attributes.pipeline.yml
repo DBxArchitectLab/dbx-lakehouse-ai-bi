@@ -1,0 +1,29 @@
+# Glove attributes with evidence (AI-08): AI Functions over the glove subset, in a Lakeflow Spark Declarative Pipeline.
+# Reads silver device_history (incremental: only new and changed devices call the model) and AI-02's glove
+# classification; writes ai_glove_attributes, glove_attributes, product_evidence and attribute_review to
+# quote_ai_product. The model is called only through the Unity Gateway extraction service; the pipeline's identity
+# (sp-dbx-lakehouse in dev-shared and prod) holds EXECUTE on it. Run after quote_ai_product_model.
+#   databricks bundle run quote_ai_attributes -t dev
+# Verify before recording: AI Functions inside a serverless pipeline, and quote_ai.method (ai_extract or ai_query).
+resources:
+  pipelines:
+    quote_ai_attributes:
+      name: quote_ai_attributes
+      catalog: ${var.catalog}
+      schema: ${resources.schemas.quote_ai_product.name}
+      serverless: true
+      continuous: false
+      libraries:
+        - file: { path: ../../src/quote_ai/pipelines/attributes.py }
+      environment:
+        dependencies:
+          - pydantic>=2.7
+          - pyyaml>=6
+      configuration:
+        quote_ai.src_path: ${workspace.file_path}/src
+        quote_ai.catalog: ${var.catalog}
+        quote_ai.schemas: quote_ai_gudid_silver=${resources.schemas.quote_ai_gudid_silver.name},quote_ai_gudid_gold=${resources.schemas.quote_ai_gudid_gold.name},quote_ai_ops=${resources.schemas.quote_ai_ops.name},quote_ai_product=${resources.schemas.quote_ai_product.name}
+        quote_ai.extract_service: quote_ai_extract_${var.quote_ai_target}
+        quote_ai.method: ai_extract
+      tags:
+        app: quote_ai

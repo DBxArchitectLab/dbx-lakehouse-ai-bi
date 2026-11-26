@@ -1,0 +1,40 @@
+# Live scoring (AI-26): every morning, the same scorers as the evaluation gate on a sample of yesterday's production
+# traces (50, config/quote_ai/slo.yml), the usage per trace for cost per quote, the compute cost from the billing
+# system tables, and the day's SLO row. Everything lands in quote_ai_monitoring, which the Ops page and the operating
+# dashboard read. The judge's calls go through Unity Gateway (the chat model service, its own rate limit).
+#   databricks bundle run quote_ai_live_scoring -t dev
+# Runs as sp-dbx-lakehouse in dev-shared and prod; it stores scores and counts only, no request text (AI-24).
+# Verify before recording: mlflow.search_traces and the trace tags (quote_ai.ops.live_scoring.search_traces).
+resources:
+  jobs:
+    quote_ai_live_scoring:
+      name: quote_ai_live_scoring
+      description: 'QuoteAI live quality: gate scorers on sampled traces, cost per quote, the daily SLOs (AI-26)'
+      max_concurrent_runs: 1
+      tags:
+        app: quote_ai
+        part: operations
+      schedule:
+        quartz_cron_expression: "0 30 5 * * ?"
+        timezone_id: UTC
+      tasks:
+        - task_key: cost
+          environment_key: default
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/ops_job.py
+            parameters: [cost, --catalog, "${var.catalog}", --schemas, &schemas "quote_ai_monitoring=${resources.schemas.quote_ai_monitoring.name}"]
+        - task_key: score
+          depends_on: [{ task_key: cost }]
+          environment_key: default
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/ops_job.py
+            parameters: [score, --experiment, "${resources.experiments.quote_ai_app_traces.name}", --judge-endpoint, "quote_ai_chat_${var.quote_ai_target}", --catalog, "${var.catalog}", --schemas, *schemas]
+      environments:
+        - environment_key: default
+          spec:
+            environment_version: '2'
+            dependencies:
+              - pydantic>=2.7
+              - pyyaml>=6
+              - mlflow>=3.1
+              - databricks-sdk

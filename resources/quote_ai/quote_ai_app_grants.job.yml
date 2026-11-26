@@ -1,0 +1,34 @@
+# The QuoteAI app's table grants (AI-07). Run after quote_ai_product_model has created the tables, and after the
+# app's first deploy (the app's service principal exists only then).
+resources:
+  jobs:
+    # SELECT on the product model and GUDID gold; AI-24: SELECT (not MODIFY) on the Delta quote copy, the account list
+    # for knowledge retrieval, the eval schema for feedback; and REVOKE of the price book, the sales facts and the
+    # metric views (a rep's own reads now, filtered and masked).
+    quote_ai_app_grants:
+      name: quote_ai_app_grants
+      description: 'QuoteAI: grant the app service principal least privilege on the tables it reads and writes'
+      max_concurrent_runs: 1
+      tags:
+        app: quote_ai
+        part: app
+      tasks:
+        - task_key: grants
+          environment_key: default
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/product_job.py
+            parameters:
+              - grant-app
+              - --app-sp
+              - ${resources.apps.quote_ai_app.service_principal_client_id}
+              - --catalog
+              - ${var.catalog}
+              - --schemas
+              - quote_ai_gudid_gold=${resources.schemas.quote_ai_gudid_gold.name},quote_ai_gudid_silver=${resources.schemas.quote_ai_gudid_silver.name},quote_ai_product=${resources.schemas.quote_ai_product.name},quote_ai_sales=${resources.schemas.quote_ai_sales.name},quote_ai_eval=${resources.schemas.quote_ai_eval.name}
+      environments:
+        - environment_key: default
+          spec:
+            environment_version: '2'
+            dependencies:
+              - pydantic>=2.7
+              - pyyaml>=6

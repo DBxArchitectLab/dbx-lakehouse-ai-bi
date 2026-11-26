@@ -1,0 +1,33 @@
+{
+  "gudid": {
+    "device": {
+      "publicVersionStatus": "Update",
+      "deviceRecordStatus": "Published",
+      "publicVersionNumber": 3,
+      "publicVersionDate": "2026-11-13",
+      "devicePublishDate": "2019-05-02",
+      "deviceCommDistributionEndDate": null,
+      "deviceCommDistributionStatus": "In Commercial Distribution",
+      "identifiers": {
+        "identifier": [
+          {"deviceId": "00812345000000", "deviceIdType": "Primary", "deviceIdIssuingAgency": "GS1",
+           "containsDINumber": null, "pkgQuantity": null, "pkgDiscontinueDate": null, "pkgStatus": null,
+           "pkgType": null},
+          {"deviceId": "10812345000007", "deviceIdType": "Package", "deviceIdIssuingAgency": "GS1",
+           "containsDINumber": "00812345000000", "pkgQuantity": 10, "pkgDiscontinueDate": null,
+           "pkgStatus": "In Commercial Distribution", "pkgType": "Case"}
+        ]
+      },
+      "brandName": "Demo Nitrile Exam Glove A",
+      "versionModelNumber": "NE-M-100",
+      "catalogNumber": "DS-NE-M",
+      "companyName": "Demo Supplier (synthetic)",
+      "deviceCount": 100,
+      "deviceDescription": "Nitrile exam glove, powder-free, textured fingertips, 9.5 in, tested for use with chemotherapy drugs",
+      "labeledContainsNRL": false,
+      "labeledNoNRL": true,
+      "sterilization": {"deviceSterile": false, "sterilizationPriorToUse": false},
+      "productCodes": {"fdaProductCode": [{"productCode": "LZA", "productCodeName": "Polymer Patient Examination Glove"}]}
+    }
+  }
+}

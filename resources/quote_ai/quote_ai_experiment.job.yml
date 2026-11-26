@@ -1,0 +1,45 @@
+# One optimization experiment (AI-23): one variable, one value, the whole evaluation package, logged to MLflow with
+# the cost per quote and the p95 latency. Experiments run in dev only (the runner refuses any other target).
+#   databricks bundle run quote_ai_experiment -t dev --params name=E1,variable=comparison_prompt,value=v4
+#   databricks bundle run quote_ai_experiment -t dev --params name=E3,variable=comparison_model,value=quote_ai_chat_small
+# Promoting a winner is a pull request (the champion prompt alias, a line in config/quote_ai/models.yml) that must
+# pass the quote_ai_eval gate; docs/quote_ai/decisions/0005-optimization.md records why.
+# Verify before recording: {{job.parameters.*}} in spark_python_task parameters, and an empty value parameter.
+resources:
+  experiments:
+    quote_ai_experiments:
+      name: /Shared/quote_ai/experiments
+
+  jobs:
+    quote_ai_experiment:
+      name: quote_ai_experiment
+      description: 'QuoteAI optimization: one variable per run against the evaluation package (dev only)'
+      max_concurrent_runs: 1
+      tags:
+        app: quote_ai
+        part: evaluation
+      parameters:
+        - name: name
+          default: baseline
+        - name: variable
+          default: ""
+        - name: value
+          default: ""
+      tasks:
+        - task_key: run_experiment
+          environment_key: default
+          spark_python_task:
+            python_file: ../../evaluation/quote_ai/experiments/run_experiment.py
+            parameters: [--name, "{{job.parameters.name}}", --variable, "{{job.parameters.variable}}", --value,
+                         "{{job.parameters.value}}", --target, "${bundle.target}", --mlflow, --experiment,
+                         "${resources.experiments.quote_ai_experiments.name}"]
+      environments:
+        - environment_key: default
+          spec:
+            environment_version: '2'
+            dependencies:
+              - pydantic>=2.7
+              - pyyaml>=6
+              - mlflow>=3.1
+              - databricks-sdk
+              - openai

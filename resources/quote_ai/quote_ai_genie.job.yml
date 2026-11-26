@@ -1,0 +1,34 @@
+# The DBxLab sales analyst (AI-11): comments on every table the Genie Agent reads, then the agent created or updated
+# from src/quote_ai/semantic/genie/sales_analyst.yml and shared with the Sales groups (CAN_RUN). Run after
+# quote_ai_semantic. The run prints the agent's space ID: set it as quote_ai_genie_space_id for the app's Ask the data
+# panel (the app resource needs an existing space), then deploy again.
+#   databricks bundle run quote_ai_genie -t dev
+resources:
+  jobs:
+    quote_ai_genie:
+      name: quote_ai_genie
+      description: 'QuoteAI: table comments and the DBxLab sales analyst Genie Agent, deployed from its YAML'
+      max_concurrent_runs: 1
+      tags:
+        app: quote_ai
+        part: analytics
+      tasks:
+        - task_key: comments
+          environment_key: default
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/semantic_job.py
+            parameters: [comments, --catalog, "${var.catalog}", --schemas, &schemas "quote_ai_sales=${resources.schemas.quote_ai_sales.name},quote_ai_product=${resources.schemas.quote_ai_product.name},quote_ai_gudid_gold=${resources.schemas.quote_ai_gudid_gold.name},quote_ai_gudid_silver=${resources.schemas.quote_ai_gudid_silver.name}"]
+        - task_key: deploy
+          depends_on: [{ task_key: comments }]
+          environment_key: default
+          spark_python_task:
+            python_file: ../../src/quote_ai/semantic/genie/deploy_genie.py
+            parameters: [--catalog, "${var.catalog}", --warehouse-id, "${var.quote_ai_warehouse_id}", --schemas, *schemas, --groups, "${var.quote_ai_reps_group},${var.quote_ai_managers_group}"]
+      environments:
+        - environment_key: default
+          spec:
+            environment_version: '2'
+            dependencies:
+              - pydantic>=2.7
+              - pyyaml>=6
+              - databricks-sdk>=0.60

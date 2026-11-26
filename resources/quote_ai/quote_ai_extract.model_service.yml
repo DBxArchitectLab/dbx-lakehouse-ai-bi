@@ -1,0 +1,30 @@
+# quote_ai_extract (AI-06): the extraction model (AI-04's choice) for requests (AI-05) and attributes (AI-08), behind
+# Unity Gateway. Called by the pipelines' service principal in batch, and by the app (AI-07) for one request at a time.
+# Verify before recording: see quote_ai_chat.model_service.yml.
+resources:
+  model_services:
+    quote_ai_extract:
+      parent: schemas/${var.catalog}.${resources.schemas.quote_ai_ai.name}
+      model_service_id: quote_ai_extract_${var.quote_ai_target}
+      comment: QuoteAI extraction (requests and glove attributes), temperature 0, JSON schema output; batch and app use
+      config:
+        routing:
+          destinations:
+            - name: extract
+              destination_type: DESTINATION_TYPE_PAY_PER_TOKEN_FOUNDATION_MODEL
+              pay_per_token_config:
+                model: models/${var.quote_ai_extract_model}
+        rate_limits:
+          - key: RATE_LIMIT_KEY_USER_DEFAULT                # a person: a request at a time
+            requests: 20
+            renewal_period: RATE_LIMIT_RENEWAL_PERIOD_MINUTE
+          - key: RATE_LIMIT_KEY_SERVICE_PRINCIPAL           # the batch identity: sized from AI-04's token counts
+            principal: ${var.quote_ai_pipeline_sp}
+            tokens: 2000000
+            renewal_period: RATE_LIMIT_RENEWAL_PERIOD_MINUTE
+        inference_table:
+          parent: schemas/${var.catalog}.${resources.schemas.quote_ai_monitoring.name}
+          table_name_prefix: quote_ai_extract
+      grants:
+        - principal: ${var.quote_ai_pipeline_sp}
+          privileges: [EXECUTE]

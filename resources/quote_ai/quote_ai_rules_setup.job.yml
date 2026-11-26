@@ -1,0 +1,38 @@
+# The rules setup (AI-25): every rule Unity Catalog serves, applied from this commit's SQL and code, in one job that
+# cd.yml runs after each deploy: the eligibility and fulfilment functions (AI-15), the agent's tool functions with
+# price_quote (AI-18, AI-19), then the row filters, cost masks and grants (AI-24, the quote_ai_security_setup job).
+# The tasks call the same entry points as quote_ai_search_index and quote_ai_agent_registration: nothing is copied.
+#   databricks bundle run quote_ai_rules_setup -t prod
+# Runs after the tables exist (first deploy: see docs/quote_ai/deployment-guide.md for the order).
+resources:
+  jobs:
+    quote_ai_rules_setup:
+      name: quote_ai_rules_setup
+      description: 'QuoteAI release: the rules as UC functions, filters, masks and grants, from this commit (AI-25)'
+      max_concurrent_runs: 1
+      tags:
+        app: quote_ai
+        part: release
+      tasks:
+        - task_key: eligibility_functions
+          environment_key: default
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/search_job.py
+            parameters: [functions, --source-root, "${workspace.file_path}", --packages, &packages "/Volumes/${var.catalog}/${resources.schemas.quote_ai_ai.name}/${resources.volumes.quote_ai_packages.name}", --catalog, "${var.catalog}", --schemas, &schemas "quote_ai_product=${resources.schemas.quote_ai_product.name},quote_ai_sales=${resources.schemas.quote_ai_sales.name},quote_ai_ai=${resources.schemas.quote_ai_ai.name},quote_ai_gudid_gold=${resources.schemas.quote_ai_gudid_gold.name}"]
+        - task_key: tool_functions
+          depends_on: [{ task_key: eligibility_functions }]
+          environment_key: default
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/agent_job.py
+            parameters: [functions, --live, --source-root, "${workspace.file_path}", --packages, *packages, --win-endpoint, "${resources.model_serving_endpoints.quote_ai_win_model.name}", --catalog, "${var.catalog}", --schemas, *schemas]
+        - task_key: security
+          depends_on: [{ task_key: tool_functions }]
+          run_job_task:
+            job_id: ${resources.jobs.quote_ai_security_setup.id}
+      environments:
+        - environment_key: default
+          spec:
+            environment_version: '2'
+            dependencies:
+              - pydantic>=2.7
+              - pyyaml>=6

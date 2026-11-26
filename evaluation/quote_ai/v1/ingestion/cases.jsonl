@@ -1,0 +1,2 @@
+{"id": "ING-001", "kind": "bad_configs", "folder": "bad_configs", "expected": "every file refused with the error its first line names"}
+{"id": "ING-002", "kind": "replay", "source": "dbxlab_synthetic", "release_date": "2026-11-12", "times": 2, "expected": "the manifest has each file once"}

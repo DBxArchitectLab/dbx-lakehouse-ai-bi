@@ -1,0 +1,77 @@
+# QuoteAI's transactional store (AI-20): the Lakebase database quote_ai on the instance quote-ai-db (the instance is
+# provisioned in dbx-platform-infra-azure, a separate pull request; instance names allow no underscores), registered
+# in Unity Catalog as a database catalog so it has the same grants and audit as the rest of the platform.
+# The jobs: quote_ai_lakebase (schema, sync every 15 minutes, purge nightly) and quote_ai_lakebase_migrate (once).
+#   databricks bundle run -t dev quote_ai_lakebase_migrate   # after the app is read-only (QUOTE_AI_READ_ONLY=1)
+# Verify before recording: the database_catalogs resource keys (database_instance_name, database_name,
+# create_database_if_not_exists) in the installed Databricks CLI, and whether synced tables (Lakebase -> Delta) are
+# available to replace the sync task.
+resources:
+  database_catalogs:
+    quote_ai_lakebase:
+      name: quote_ai_lakebase_${var.quote_ai_target}
+      database_instance_name: ${var.quote_ai_lakebase_instance}
+      database_name: quote_ai
+      create_database_if_not_exists: true
+
+  jobs:
+    quote_ai_lakebase:
+      name: quote_ai_lakebase
+      description: 'QuoteAI Lakebase: the schema, the analytics copy in Delta (sync) and conversation retention'
+      max_concurrent_runs: 1
+      tags:
+        app: quote_ai
+        part: lakebase
+      schedule:
+        quartz_cron_expression: "0 0/15 * * * ?"
+        timezone_id: UTC
+      tasks:
+        - task_key: schema
+          environment_key: lakebase
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/lakebase_job.py
+            parameters: [schema, --instance, "${var.quote_ai_lakebase_instance}", --catalog, "${var.catalog}", --schemas, &schemas "quote_ai_sales=${resources.schemas.quote_ai_sales.name}"]
+        - task_key: sync
+          depends_on: [{ task_key: schema }]
+          environment_key: lakebase
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/lakebase_job.py
+            parameters: [sync, --lakebase-catalog, "${resources.database_catalogs.quote_ai_lakebase.name}", --catalog, "${var.catalog}", --schemas, *schemas]
+        - task_key: purge
+          depends_on: [{ task_key: schema }]
+          environment_key: lakebase
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/lakebase_job.py
+            parameters: [purge, --instance, "${var.quote_ai_lakebase_instance}", --catalog, "${var.catalog}", --schemas, *schemas]
+      environments:
+        - environment_key: lakebase
+          spec:
+            environment_version: '2'
+            dependencies:
+              - pydantic>=2.7
+              - pyyaml>=6
+              - psycopg[binary]>=3.1
+              - databricks-sdk
+
+    quote_ai_lakebase_migrate:
+      name: quote_ai_lakebase_migrate
+      description: 'QuoteAI AI-20: move quotes from Delta to Lakebase once, with counts and checksums per table'
+      max_concurrent_runs: 1
+      tags:
+        app: quote_ai
+        part: lakebase
+      tasks:
+        - task_key: migrate
+          environment_key: lakebase
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/lakebase_job.py
+            parameters: [migrate, --writes-paused, --instance, "${var.quote_ai_lakebase_instance}", --catalog, "${var.catalog}", --schemas, "quote_ai_sales=${resources.schemas.quote_ai_sales.name}"]
+      environments:
+        - environment_key: lakebase
+          spec:
+            environment_version: '2'
+            dependencies:
+              - pydantic>=2.7
+              - pyyaml>=6
+              - psycopg[binary]>=3.1
+              - databricks-sdk

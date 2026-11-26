@@ -1,0 +1,41 @@
+# AI security (AI-24): the row filters, the cost mask and the grants, applied from SQL files in the repo (reviewed in
+# pull requests). Run after quote_ai_product_model, quote_ai_semantic and quote_ai_knowledge_index have created the
+# tables, and after the app's first deploy (quote_ai_app_grants then cuts the app's own identity down).
+#   databricks bundle run -t dev quote_ai_security_setup
+#   databricks bundle run -t dev quote_ai_eval --params suites=data_authorization,model_access
+# Then the back end, querying as the signed-in rep (user authorization, quote_ai_app.app.yml), sees only the rep's
+# accounts and never the cost; a manager sees everything.
+resources:
+  jobs:
+    quote_ai_security_setup:
+      name: quote_ai_security_setup
+      description: 'QuoteAI security: row filters, cost masks, group and per-tool grants (AI-24)'
+      max_concurrent_runs: 1
+      tags:
+        app: quote_ai
+        part: security
+      tasks:
+        - task_key: filters
+          environment_key: default
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/security_job.py
+            parameters: [filters, --catalog, "${var.catalog}", --schemas, &schemas "quote_ai_sales=${resources.schemas.quote_ai_sales.name},quote_ai_ai=${resources.schemas.quote_ai_ai.name},quote_ai_gudid_silver=${resources.schemas.quote_ai_gudid_silver.name}"]
+        - task_key: masks
+          depends_on: [{ task_key: filters }]
+          environment_key: default
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/security_job.py
+            parameters: [masks, --catalog, "${var.catalog}", --schemas, *schemas]
+        - task_key: grants
+          depends_on: [{ task_key: masks }]
+          environment_key: default
+          spark_python_task:
+            python_file: ../../src/quote_ai/jobs/security_job.py
+            parameters: [grants, --catalog, "${var.catalog}", --schemas, *schemas, --reps, "${var.quote_ai_reps_group}", --managers, "${var.quote_ai_managers_group}"]
+      environments:
+        - environment_key: default
+          spec:
+            environment_version: '2'
+            dependencies:
+              - pydantic>=2.7
+              - pyyaml>=6

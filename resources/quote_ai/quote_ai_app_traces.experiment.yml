@@ -1,0 +1,6 @@
+# MLflow traces of the QuoteAI app (AI-07): one trace per request, with the read_request span, the prompt version,
+# tokens and latency. The app writes here through its experiment resource.
+resources:
+  experiments:
+    quote_ai_app_traces:
+      name: ${workspace.root_path}/quote_ai_app_traces

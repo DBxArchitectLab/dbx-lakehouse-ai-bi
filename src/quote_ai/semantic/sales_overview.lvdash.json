@@ -1,0 +1,702 @@
+{
+  "datasets": [
+    {
+      "name": "kpis",
+      "displayName": "Headline measures",
+      "queryLines": [
+        "SELECT MEASURE(quotes) AS quotes, MEASURE(win_rate) AS win_rate, ",
+        "MEASURE(avg_discount_pct) AS avg_discount_pct, MEASURE(quote_turnaround_h) AS quote_turnaround_h, ",
+        "MEASURE(approval_rate) AS approval_rate ",
+        "FROM quote_metrics WHERE (:account = 'All' OR account = :account)"
+      ],
+      "parameters": [
+        {
+          "displayName": "Account",
+          "keyword": "account",
+          "dataType": "STRING",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "All"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "pipeline_by_state",
+      "displayName": "Pipeline by state",
+      "queryLines": [
+        "SELECT state, MEASURE(quotes) AS quotes FROM quote_metrics WHERE (:account = 'All' OR account = :account) GROUP BY state"
+      ],
+      "parameters": [
+        {
+          "displayName": "Account",
+          "keyword": "account",
+          "dataType": "STRING",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "All"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "win_rate_by_region",
+      "displayName": "Win rate by region",
+      "queryLines": [
+        "SELECT region, MEASURE(win_rate) AS win_rate FROM quote_metrics WHERE (:account = 'All' OR account = :account) GROUP BY region"
+      ],
+      "parameters": [
+        {
+          "displayName": "Account",
+          "keyword": "account",
+          "dataType": "STRING",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "All"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "win_rate_by_month",
+      "displayName": "Win rate by month and product family",
+      "queryLines": [
+        "SELECT month, product_family, MEASURE(win_rate) AS win_rate FROM quote_metrics WHERE (:account = 'All' OR account = :account) ",
+        "GROUP BY month, product_family"
+      ],
+      "parameters": [
+        {
+          "displayName": "Account",
+          "keyword": "account",
+          "dataType": "STRING",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "All"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "account_purchases",
+      "displayName": "What the account bought, and at what price",
+      "queryLines": [
+        "SELECT month, sku, MEASURE(units) AS units, MEASURE(avg_unit_price) AS avg_unit_price FROM order_metrics ",
+        "WHERE (:account = 'All' OR account = :account) GROUP BY month, sku"
+      ],
+      "parameters": [
+        {
+          "displayName": "Account",
+          "keyword": "account",
+          "dataType": "STRING",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "All"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "sales_overview",
+      "displayName": "Sales overview",
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layout": [
+        {
+          "widget": {
+            "name": "title",
+            "multilineTextboxSpec": {
+              "lines": [
+                "## QuoteAI - Sales overview",
+                "Synthetic demo data (DBxLab Medical Supply). Every number comes from the metric views quote_metrics and order_metrics: win rate counts expired as lost and excludes cancelled (decision record 0003)."
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 6,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "account_filter",
+            "queries": [
+              {
+                "name": "param_kpis",
+                "query": {
+                  "datasetName": "kpis",
+                  "parameters": [
+                    {
+                      "name": "account",
+                      "keyword": "account"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "param_pipeline_by_state",
+                "query": {
+                  "datasetName": "pipeline_by_state",
+                  "parameters": [
+                    {
+                      "name": "account",
+                      "keyword": "account"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "param_win_rate_by_region",
+                "query": {
+                  "datasetName": "win_rate_by_region",
+                  "parameters": [
+                    {
+                      "name": "account",
+                      "keyword": "account"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "param_win_rate_by_month",
+                "query": {
+                  "datasetName": "win_rate_by_month",
+                  "parameters": [
+                    {
+                      "name": "account",
+                      "keyword": "account"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "param_account_purchases",
+                "query": {
+                  "datasetName": "account_purchases",
+                  "parameters": [
+                    {
+                      "name": "account",
+                      "keyword": "account"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "parameterName": "account",
+                    "queryName": "param_kpis"
+                  },
+                  {
+                    "parameterName": "account",
+                    "queryName": "param_pipeline_by_state"
+                  },
+                  {
+                    "parameterName": "account",
+                    "queryName": "param_win_rate_by_region"
+                  },
+                  {
+                    "parameterName": "account",
+                    "queryName": "param_win_rate_by_month"
+                  },
+                  {
+                    "parameterName": "account",
+                    "queryName": "param_account_purchases"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Account (All, or e.g. Lakeside Regional Clinic)"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 4,
+            "width": 6,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "quotes",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "kpis",
+                  "fields": [
+                    {
+                      "name": "quotes",
+                      "expression": "`quotes`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "quotes",
+                  "displayName": "Quotes"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Quotes"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 1,
+            "width": 1,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "win_rate",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "kpis",
+                  "fields": [
+                    {
+                      "name": "win_rate",
+                      "expression": "`win_rate`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "win_rate",
+                  "displayName": "Win rate"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Win rate"
+              }
+            }
+          },
+          "position": {
+            "x": 1,
+            "y": 1,
+            "width": 1,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "avg_discount",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "kpis",
+                  "fields": [
+                    {
+                      "name": "avg_discount_pct",
+                      "expression": "`avg_discount_pct`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "avg_discount_pct",
+                  "displayName": "Average discount"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Average discount"
+              }
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 1,
+            "width": 1,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "turnaround",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "kpis",
+                  "fields": [
+                    {
+                      "name": "quote_turnaround_h",
+                      "expression": "`quote_turnaround_h`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "quote_turnaround_h",
+                  "displayName": "Turnaround (median hours)"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Turnaround (median hours)"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 1,
+            "width": 1,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "approvals",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "kpis",
+                  "fields": [
+                    {
+                      "name": "approval_rate",
+                      "expression": "`approval_rate`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "approval_rate",
+                  "displayName": "Approval rate"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Approval rate"
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 1,
+            "width": 1,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "pipeline",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "pipeline_by_state",
+                  "fields": [
+                    {
+                      "name": "state",
+                      "expression": "`state`"
+                    },
+                    {
+                      "name": "quotes",
+                      "expression": "`quotes`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "state",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "fieldName": "quotes",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Pipeline by state"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 5,
+            "width": 3,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "region",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "win_rate_by_region",
+                  "fields": [
+                    {
+                      "name": "region",
+                      "expression": "`region`"
+                    },
+                    {
+                      "name": "win_rate",
+                      "expression": "`win_rate`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "region",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "fieldName": "win_rate",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Win rate by region"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 5,
+            "width": 3,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "trend",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "win_rate_by_month",
+                  "fields": [
+                    {
+                      "name": "month",
+                      "expression": "`month`"
+                    },
+                    {
+                      "name": "win_rate",
+                      "expression": "`win_rate`"
+                    },
+                    {
+                      "name": "product_family",
+                      "expression": "`product_family`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "month",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fieldName": "win_rate",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "product_family",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Win rate by month"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 11,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "purchases",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "account_purchases",
+                  "fields": [
+                    {
+                      "name": "month",
+                      "expression": "`month`"
+                    },
+                    {
+                      "name": "sku",
+                      "expression": "`sku`"
+                    },
+                    {
+                      "name": "units",
+                      "expression": "`units`"
+                    },
+                    {
+                      "name": "avg_unit_price",
+                      "expression": "`avg_unit_price`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "month",
+                    "displayName": "month"
+                  },
+                  {
+                    "fieldName": "sku",
+                    "displayName": "sku"
+                  },
+                  {
+                    "fieldName": "units",
+                    "displayName": "units"
+                  },
+                  {
+                    "fieldName": "avg_unit_price",
+                    "displayName": "avg unit price"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "What the account bought, and at what price"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 17,
+            "width": 6,
+            "height": 6
+          }
+        }
+      ]
+    }
+  ],
+  "uiSettings": {
+    "theme": {
+      "widgetHeaderAlignment": "ALIGNMENT_UNSPECIFIED"
+    }
+  }
+}
